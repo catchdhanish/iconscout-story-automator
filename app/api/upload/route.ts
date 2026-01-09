@@ -1,0 +1,155 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { addAsset } from '@/lib/history';
+import { AssetMetadata } from '@/lib/types';
+import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+const ALLOWED_TYPES = ['image/png', 'image/jpg', 'image/jpeg'];
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+
+/**
+ * POST /api/upload
+ * Handles multipart/form-data uploads for assets
+ *
+ * Request:
+ * - assetFile: Image file (PNG, JPG, JPEG)
+ * - metaDescription: String description
+ *
+ * Response:
+ * - success: true/false
+ * - asset: AssetMetadata (on success)
+ * - error: Error message (on failure)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Parse FormData
+    const formData = await request.formData();
+    const assetFile = formData.get('assetFile') as File | null;
+    const metaDescription = formData.get('metaDescription') as string | null;
+
+    // Validate assetFile exists
+    if (!assetFile) {
+      return NextResponse.json(
+        { success: false, error: 'Missing assetFile' },
+        { status: 400 }
+      );
+    }
+
+    // Validate metaDescription exists
+    if (!metaDescription || metaDescription.trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'Missing metaDescription' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file format
+    if (!ALLOWED_TYPES.includes(assetFile.type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid file format. Allowed types: PNG, JPG, JPEG. Received: ${assetFile.type}`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size
+    if (assetFile.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `File too large. Maximum size: 30MB. Received: ${(assetFile.size / 1024 / 1024).toFixed(2)}MB`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Generate unique asset ID
+    const assetId = uuidv4();
+
+    // Get file extension
+    const extension = assetFile.name.split('.').pop() || 'png';
+
+    // Create filename: {uuid}.{ext}
+    const filename = `${assetId}.${extension}`;
+    const filePath = path.join(UPLOADS_DIR, filename);
+
+    // Ensure uploads directory exists
+    try {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
+    }
+
+    // Save file to disk
+    try {
+      const arrayBuffer = await assetFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await fs.writeFile(filePath, buffer);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to save file: ${error instanceof Error ? error.message : 'Unknown error'}`
+        },
+        { status: 500 }
+      );
+    }
+
+    // Get current date in YYYY-MM-DD format
+    const currentDate = new Date().toISOString().split('T')[0];
+
+    // Create AssetMetadata object
+    const asset: AssetMetadata = {
+      id: assetId,
+      date: currentDate,
+      asset_url: `/uploads/${filename}`,
+      meta_description: metaDescription.trim(),
+      status: 'Draft',
+      created_at: new Date().toISOString(),
+      versions: []
+    };
+
+    // Add asset to history
+    try {
+      await addAsset(asset);
+    } catch (error) {
+      // If history update fails, try to clean up the uploaded file
+      try {
+        await fs.unlink(filePath);
+      } catch (unlinkError) {
+        // Ignore cleanup errors
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to update history: ${error instanceof Error ? error.message : 'Unknown error'}`
+        },
+        { status: 500 }
+      );
+    }
+
+    // Return success response
+    return NextResponse.json(
+      {
+        success: true,
+        asset: asset
+      },
+      { status: 201 }
+    );
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      },
+      { status: 500 }
+    );
+  }
+}
