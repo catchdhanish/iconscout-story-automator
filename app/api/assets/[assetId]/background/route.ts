@@ -117,7 +117,7 @@ export async function POST(
     const newVersion: AssetVersion = {
       version: asset.versions.length + 1,
       created_at: new Date().toISOString(),
-      prompt_used: fullPromptUsed,
+      prompt_used: backgroundDescription, // AI-generated description, not input prompts
       file_path: '' // Empty for now, will be populated when image is generated
     };
 
