@@ -151,7 +151,7 @@ export default function UploadPage() {
         </div>
 
         {/* Form Card */}
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-[600px] mx-auto">
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg border border-gray-200 p-8">
 
             {/* File Input */}
@@ -194,7 +194,7 @@ export default function UploadPage() {
                   <img
                     src={preview}
                     alt="Asset preview"
-                    className="w-48 h-48 object-cover rounded-md border-2 border-gray-200"
+                    className="w-[200px] h-[200px] object-cover rounded-md border-2 border-gray-200"
                   />
                 </div>
               </div>
