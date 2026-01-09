@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(npm test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: add history management with file locking \\(Task 3\\)\n\nImplement thread-safe history management utility using proper-lockfile:\n- readHistory\\(\\): Read history.json with file locking\n- updateHistory\\(\\): Write history.json with file locking\n- addAsset\\(\\): Add new asset with validation\n- updateAssetStatus\\(\\): Update asset status and fields\n- getAsset\\(\\): Retrieve asset by ID\n- deleteAsset\\(\\): Remove asset from history\n\nAll operations use proper-lockfile for thread safety with configurable\nretry logic and stale lock handling. Comprehensive test suite with 26\ntests covering all functions and concurrent access scenarios.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "mcp__ide__getDiagnostics",
+      "Bash(git init:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)",
+      "Bash(git mv:*)"
     ]
   }
 }
