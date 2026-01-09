@@ -12,21 +12,20 @@ export type Status = 'Draft' | 'Ready' | 'Scheduled' | 'Published' | 'Failed' | 
  */
 export interface AssetVersion {
   version: number;
-  backgroundPath: string;
-  prompt: string;
-  generatedAt: string;
-  status: 'pending' | 'completed' | 'failed';
-  error?: string;
+  created_at: string;
+  prompt_used: string;
+  refinement_prompt?: string;
+  file_path: string;
 }
 
 /**
  * Tracks errors that occur during asset operations
  */
 export interface AssetError {
-  timestamp: string;
   message: string;
-  operation: string;
-  stackTrace?: string;
+  details: string;
+  failed_at: string;
+  retry_count: number;
 }
 
 /**
@@ -34,17 +33,22 @@ export interface AssetError {
  */
 export interface AssetMetadata {
   id: string;
-  iconPath: string;
-  originalIconPath: string;
-  currentVersion: number;
-  versions: AssetVersion[];
+  date: string;
+  asset_url: string;
+  meta_description: string;
   status: Status;
-  scheduledFor?: string;
-  publishedAt?: string;
+  created_at: string;
+  updated_at?: string;
+  asset_vision_description?: string;
+  dominant_colors?: string[];
+  active_version?: number;
+  versions: AssetVersion[];
   blotato_post_id?: string;
-  errors?: AssetError[];
-  createdAt: string;
-  updatedAt: string;
+  scheduled_time?: string;
+  scheduled_at?: string;
+  published_at?: string;
+  verified_at?: string;
+  error?: AssetError;
 }
 
 /**

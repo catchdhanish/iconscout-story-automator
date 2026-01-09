@@ -3,8 +3,6 @@
  * Centralizes all environment variables and application settings
  */
 
-import path from 'path';
-
 /**
  * Application configuration object
  */
@@ -14,10 +12,10 @@ export const config = {
    */
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY || '',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    model: 'anthropic/claude-3.5-sonnet',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    model: 'google/gemini-2.0-flash-exp:free',
     maxCallsPerMinute: parseInt(process.env.OPENROUTER_MAX_CALLS_PER_MINUTE || '20', 10),
-    timeout: 60000, // 60 seconds
+    timeout: 30000,
   },
 
   /**
@@ -27,56 +25,37 @@ export const config = {
     apiKey: process.env.BLOTATO_API_KEY || '',
     baseUrl: process.env.BLOTATO_API_BASE_URL || 'https://api.blotato.com',
     accountId: process.env.BLOTATO_ACCOUNT_ID || '',
-    timeout: 30000, // 30 seconds
+    timeout: 15000,
   },
 
   /**
    * File system paths
    */
   paths: {
-    uploads: path.join(process.cwd(), 'public', 'uploads'),
-    temp: path.join(process.cwd(), 'public', 'temp'),
-    history: path.join(process.cwd(), 'data', 'history.json'),
-    logs: path.join(process.cwd(), 'logs'),
+    uploads: './public/uploads',
+    temp: './public/temp',
+    history: './history.json',
+    logs: './logs',
   },
 
   /**
    * Instagram story specifications and layout calculations
    */
   instagram: {
-    /**
-     * Instagram story dimensions (1080x1920 pixels)
-     */
-    dimensions: {
-      width: 1080,
-      height: 1920,
-    },
-
-    /**
-     * Safe zones to avoid content being cut off
-     */
+    width: 1080,
+    height: 1920,
     safeZones: {
-      top: 250,    // Account for profile info at top
-      bottom: 250, // Account for CTA buttons at bottom
+      top: 250,
+      bottom: 180,
     },
-
-    /**
-     * Calculate the asset zone (icon placement area)
-     * Returns the dimensions and position of the zone where icons should be placed
-     */
-    getAssetZone: () => {
-      const { width, height } = config.instagram.dimensions;
-      const { top, bottom } = config.instagram.safeZones;
-
-      return {
-        x: 0,
-        y: top,
-        width: width,
-        height: height - top - bottom,
-      };
+    assetZone: {
+      width: 756,
+      height: 1344,
+      xOffset: 162,
+      yOffset: 288,
     },
   },
-};
+} as const;
 
 /**
  * Validates that all required environment variables are set

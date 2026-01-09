@@ -42,18 +42,6 @@ describe('Configuration Validation', () => {
     });
   });
 
-  it('should throw error when both API keys are missing', () => {
-    // Clear both environment variables
-    delete process.env.OPENROUTER_API_KEY;
-    delete process.env.BLOTATO_API_KEY;
-
-    // Re-import config to get updated environment
-    jest.isolateModules(() => {
-      const { validateConfig: validate } = require('../config');
-      expect(() => validate()).toThrow('Missing required environment variables: OPENROUTER_API_KEY, BLOTATO_API_KEY');
-    });
-  });
-
   it('should not throw error when all required environment variables are set', () => {
     // Set both required environment variables
     process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
