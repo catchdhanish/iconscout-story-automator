@@ -10,12 +10,13 @@ const ALLOWED_TYPES = ['image/png', 'image/jpg', 'image/jpeg'];
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 /**
- * POST /api/upload
+ * POST /api/assets/upload
  * Handles multipart/form-data uploads for assets
  *
  * Request:
  * - assetFile: Image file (PNG, JPG, JPEG)
  * - metaDescription: String description
+ * - date: Optional date string in YYYY-MM-DD format (defaults to current date)
  *
  * Response:
  * - success: true/false
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const assetFile = formData.get('assetFile') as File | null;
     const metaDescription = formData.get('metaDescription') as string | null;
+    const date = formData.get('date') as string | null;
 
     // Validate assetFile exists
     if (!assetFile) {
@@ -99,13 +101,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get current date in YYYY-MM-DD format
-    const currentDate = new Date().toISOString().split('T')[0];
+    // Process date field: validate if provided, otherwise use current date
+    let assetDate: string;
+    if (date && date.trim()) {
+      // Validate YYYY-MM-DD format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid date format. Use YYYY-MM-DD format.' },
+          { status: 400 }
+        );
+      }
+      assetDate = date.trim();
+    } else {
+      // Default to current date
+      assetDate = new Date().toISOString().split('T')[0];
+    }
 
     // Create AssetMetadata object
     const asset: AssetMetadata = {
       id: assetId,
-      date: currentDate,
+      date: assetDate,
       asset_url: `/uploads/${filename}`,
       meta_description: metaDescription.trim(),
       status: 'Draft',
