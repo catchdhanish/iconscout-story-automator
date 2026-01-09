@@ -58,11 +58,11 @@ CONSTRAINTS:
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { assetId: string } }
+  { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
     // Extract assetId from route params
-    const { assetId } = params;
+    const { assetId } = await params;
 
     // Validate assetId format
     if (!assetId || typeof assetId !== 'string' || assetId.trim() === '') {

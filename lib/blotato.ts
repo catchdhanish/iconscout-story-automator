@@ -64,7 +64,7 @@ export async function scheduleStory(
   formData.append('account_id', config.blotato.accountId);
 
   // Create a Blob from the buffer and append as file
-  const blob = new Blob([imageBuffer], { type: 'image/png' });
+  const blob = new Blob([new Uint8Array(imageBuffer)], { type: 'image/png' });
   const fileName = imagePath.split('/').pop() || 'image.png';
   formData.append('image', blob, fileName);
 

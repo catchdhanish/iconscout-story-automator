@@ -19,11 +19,11 @@ import { scheduleStory } from '@/lib/blotato';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { assetId: string } }
+  { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
     // 1. Extract assetId from URL params
-    const { assetId } = params;
+    const { assetId } = await params;
 
     // 2. Parse scheduledTime from request body
     let body: { scheduledTime?: string };
