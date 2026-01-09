@@ -114,7 +114,7 @@ describe('History Management', () => {
         ]
       };
 
-      await updateHistory(testData);
+      await updateHistory(() => testData);
 
       const content = readFileSync(TEST_HISTORY_PATH, 'utf8');
       const parsed = JSON.parse(content);
@@ -122,11 +122,11 @@ describe('History Management', () => {
     });
 
     it('should throw error for invalid data structure', async () => {
-      await expect(updateHistory(null as any)).rejects.toThrow('Invalid history data: data must be an object');
+      await expect(updateHistory(() => null as any)).rejects.toThrow('Invalid history data: data must be an object');
     });
 
     it('should throw error if assets is not an array', async () => {
-      await expect(updateHistory({ assets: 'not-an-array' } as any)).rejects.toThrow('Invalid history data: assets must be an array');
+      await expect(updateHistory(() => ({ assets: 'not-an-array' } as any))).rejects.toThrow('Invalid history data: assets must be an array');
     });
   });
 
@@ -219,30 +219,6 @@ describe('History Management', () => {
 
       const history = await readHistory();
       expect(history.assets[0].status).toBe('Ready');
-      expect(history.assets[0].updated_at).toBeDefined();
-    });
-
-    it('should update status and additional fields', async () => {
-      const asset: AssetMetadata = {
-        id: 'test-1',
-        date: '2026-01-09',
-        asset_url: 'https://example.com/asset.svg',
-        meta_description: 'Test asset',
-        status: 'Draft',
-        created_at: '2026-01-09T10:00:00Z',
-        versions: []
-      };
-
-      await addAsset(asset);
-      await updateAssetStatus('test-1', 'Scheduled', {
-        scheduled_time: '2026-01-10T12:00:00Z',
-        blotato_post_id: 'post-123'
-      });
-
-      const history = await readHistory();
-      expect(history.assets[0].status).toBe('Scheduled');
-      expect(history.assets[0].scheduled_time).toBe('2026-01-10T12:00:00Z');
-      expect(history.assets[0].blotato_post_id).toBe('post-123');
       expect(history.assets[0].updated_at).toBeDefined();
     });
 

@@ -2,8 +2,6 @@
  * Tests for configuration utility
  */
 
-import { validateConfig } from '../config';
-
 describe('Configuration Validation', () => {
   const originalEnv = process.env;
 
