@@ -16,6 +16,15 @@ export interface AssetVersion {
   prompt_used: string;
   refinement_prompt?: string;
   file_path: string;
+  text_overlay_applied?: boolean;
+  text_overlay_content?: string;
+  text_overlay_position?: {
+    tier: 1 | 2 | 3;
+    y: number;
+  };
+  text_overlay_failed?: boolean;
+  text_overlay_error?: string;
+  text_overlay_fallback_applied?: boolean;
 }
 
 /**
@@ -49,6 +58,17 @@ export interface AssetMetadata {
   published_at?: string;
   verified_at?: string;
   error?: AssetError;
+  text_overlay_content?: string;
+  text_overlay_enabled?: boolean;
+  text_overlay_analytics?: {
+    position_tier_used: 1 | 2 | 3;
+    shadow_type: 'dark' | 'light';
+    lines_count: number;
+    applied_at: string;
+    render_time_ms?: number;
+    brightness_samples?: number[];
+    avg_brightness?: number;
+  };
 }
 
 /**
