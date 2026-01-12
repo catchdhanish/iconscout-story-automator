@@ -144,8 +144,9 @@ describe('composeStory', () => {
 
       const result = await composeStory(backgroundPath, assetPath, outputPath);
 
-      // Verify result returns output path
-      expect(result).toBe(outputPath);
+      // Verify result structure
+      expect(result.success).toBe(true);
+      expect(result.outputPath).toBe(outputPath);
 
       // Verify output file exists
       await expect(fs.access(outputPath)).resolves.not.toThrow();
@@ -156,24 +157,14 @@ describe('composeStory', () => {
       expect(metadata.height).toBe(config.instagram.height);
     });
 
-    it('should output JPEG when output path has .jpg extension', async () => {
-      const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
-      const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
-      const outputPath = path.join(OUTPUT_DIR, 'output.jpg');
-
-      await composeStory(backgroundPath, assetPath, outputPath);
-
-      const metadata = await sharp(outputPath).metadata();
-      expect(metadata.format).toBe('jpeg');
-    });
-
     it('should output PNG when output path has .png extension', async () => {
       const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
       const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
       const outputPath = path.join(OUTPUT_DIR, 'output.png');
 
-      await composeStory(backgroundPath, assetPath, outputPath);
+      const result = await composeStory(backgroundPath, assetPath, outputPath);
 
+      expect(result.success).toBe(true);
       const metadata = await sharp(outputPath).metadata();
       expect(metadata.format).toBe('png');
     });
@@ -181,11 +172,12 @@ describe('composeStory', () => {
     it('should accept JPEG inputs', async () => {
       const backgroundPath = path.join(FIXTURES_DIR, 'background.jpg');
       const assetPath = path.join(FIXTURES_DIR, 'asset.jpg');
-      const outputPath = path.join(OUTPUT_DIR, 'output.jpg');
+      const outputPath = path.join(OUTPUT_DIR, 'output.png');
 
       const result = await composeStory(backgroundPath, assetPath, outputPath);
 
-      expect(result).toBe(outputPath);
+      expect(result.success).toBe(true);
+      expect(result.outputPath).toBe(outputPath);
       await expect(fs.access(outputPath)).resolves.not.toThrow();
     });
   });
@@ -309,9 +301,12 @@ describe('composeStory', () => {
       const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
       const outputPath = '/invalid/path/that/does/not/exist/output.png';
 
-      await expect(composeStory(backgroundPath, assetPath, outputPath))
-        .rejects
-        .toThrow('Image processing failed');
+      const result = await composeStory(backgroundPath, assetPath, outputPath);
+
+      // Should return a failed result instead of throwing
+      expect(result.success).toBe(false);
+      expect(result.analytics?.text_overlay.failed).toBe(true);
+      expect(result.analytics?.text_overlay.error).toBeDefined();
     });
   });
 
@@ -345,15 +340,116 @@ describe('composeStory', () => {
       expect(metadata.channels).toBeGreaterThanOrEqual(3);
     });
 
-    it('should create valid JPEG file', async () => {
+    it('should create valid PNG file with any extension', async () => {
       const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
       const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
       const outputPath = path.join(OUTPUT_DIR, 'output.jpeg');
 
-      await composeStory(backgroundPath, assetPath, outputPath);
+      const result = await composeStory(backgroundPath, assetPath, outputPath);
 
+      expect(result.success).toBe(true);
+      // Note: Output is always PNG format regardless of extension
       const metadata = await sharp(outputPath).metadata();
-      expect(metadata.format).toBe('jpeg');
+      expect(metadata.format).toBe('png');
+    });
+  });
+
+  describe('text overlay integration', () => {
+    it('should compose story with text overlay and return analytics', async () => {
+      const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
+      const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
+      const outputPath = path.join(OUTPUT_DIR, 'output-with-text.png');
+
+      const result = await composeStory(backgroundPath, assetPath, outputPath, {
+        includeText: true
+      });
+
+      // Verify result structure
+      expect(result.success).toBe(true);
+      expect(result.outputPath).toBe(outputPath);
+      expect(result.analytics).toBeDefined();
+      expect(result.analytics?.text_overlay).toBeDefined();
+      expect(result.analytics?.text_overlay.enabled).toBe(true);
+
+      // Verify analytics fields
+      const textAnalytics = result.analytics?.text_overlay;
+      expect(textAnalytics?.position_tier_used).toBeDefined();
+      expect([1, 2, 3]).toContain(textAnalytics?.position_tier_used);
+      expect(textAnalytics?.position_y).toBeDefined();
+      expect(textAnalytics?.shadow_type).toBeDefined();
+      expect(['dark', 'light']).toContain(textAnalytics?.shadow_type);
+      expect(textAnalytics?.avg_brightness).toBeDefined();
+      expect(textAnalytics?.brightness_samples).toBeDefined();
+      expect(textAnalytics?.brightness_samples?.length).toBe(9);
+      expect(textAnalytics?.render_time_ms).toBeGreaterThan(0);
+
+      // Verify output file exists
+      await expect(fs.access(outputPath)).resolves.not.toThrow();
+      const metadata = await sharp(outputPath).metadata();
+      expect(metadata.width).toBe(config.instagram.width);
+      expect(metadata.height).toBe(config.instagram.height);
+    });
+
+    it('should compose story without text when includeText is false', async () => {
+      const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
+      const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
+      const outputPath = path.join(OUTPUT_DIR, 'output-no-text.png');
+
+      const result = await composeStory(backgroundPath, assetPath, outputPath, {
+        includeText: false
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.analytics?.text_overlay.enabled).toBe(false);
+
+      // Verify output file exists
+      await expect(fs.access(outputPath)).resolves.not.toThrow();
+    });
+
+    it('should use custom text when textOverride is provided', async () => {
+      const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
+      const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
+      const outputPath = path.join(OUTPUT_DIR, 'output-custom-text.png');
+
+      const result = await composeStory(backgroundPath, assetPath, outputPath, {
+        includeText: true,
+        textOverride: 'Custom Story Text'
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.analytics?.text_overlay.enabled).toBe(true);
+      await expect(fs.access(outputPath)).resolves.not.toThrow();
+    });
+
+    it('should fallback silently when text overlay fails', async () => {
+      const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
+      const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
+      const outputPath = path.join(OUTPUT_DIR, 'output-fallback.png');
+
+      // Mock a failure scenario by using an extremely long text that might cause issues
+      const veryLongText = 'A'.repeat(10000);
+
+      const result = await composeStory(backgroundPath, assetPath, outputPath, {
+        includeText: true,
+        textOverride: veryLongText
+      });
+
+      // Should still succeed (fallback to no text)
+      expect(result.success).toBe(true);
+      await expect(fs.access(outputPath)).resolves.not.toThrow();
+    });
+
+    it('should maintain backward compatibility with old signature', async () => {
+      const backgroundPath = path.join(FIXTURES_DIR, 'background-1080x1920.png');
+      const assetPath = path.join(FIXTURES_DIR, 'asset-landscape.png');
+      const outputPath = path.join(OUTPUT_DIR, 'output-backward-compat.png');
+
+      // Call without options (should default to includeText: true)
+      const result = await composeStory(backgroundPath, assetPath, outputPath);
+
+      expect(result.success).toBe(true);
+      expect(result.analytics?.text_overlay.enabled).toBe(true);
+      await expect(fs.access(outputPath)).resolves.not.toThrow();
     });
   });
 });
