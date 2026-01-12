@@ -13,9 +13,9 @@ export const config = {
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY || '',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-    model: 'google/gemini-2.0-flash-exp:free',
+    model: 'google/gemini-2.5-flash-image',
     maxCallsPerMinute: parseInt(process.env.OPENROUTER_MAX_CALLS_PER_MINUTE || '20', 10),
-    timeout: 30000,
+    timeout: 60000, // Increased timeout for image generation
   },
 
   /**
