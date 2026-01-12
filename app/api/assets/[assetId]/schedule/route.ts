@@ -9,6 +9,7 @@ import path from 'path';
 import { getAsset, updateHistory } from '@/lib/history';
 import { composeStory } from '@/lib/composition';
 import { scheduleStory } from '@/lib/blotato';
+import { config } from '@/lib/config';
 
 /**
  * POST handler for scheduling Instagram stories
@@ -151,9 +152,32 @@ export async function POST(
     const outputPath = path.join(process.cwd(), 'public', 'uploads', outputFileName);
     const publicUrl = `/uploads/${outputFileName}`;
 
-    // Call composeStory(backgroundPath, assetPath, outputPath)
+    // Call composeStory with text overlay options
+    let composeResult;
     try {
-      await composeStory(backgroundPath, assetPath, outputPath);
+      composeResult = await composeStory(backgroundPath, assetPath, outputPath, {
+        includeText: config.textOverlay?.enabled !== false,
+        textOverride: asset.text_overlay_content
+      });
+
+      // Log text overlay analytics if available
+      if (composeResult.analytics?.text_overlay) {
+        const textAnalytics = composeResult.analytics.text_overlay;
+        console.log('[Schedule] Text overlay analytics:', {
+          enabled: textAnalytics.enabled,
+          tier: textAnalytics.position_tier_used,
+          shadow: textAnalytics.shadow_type,
+          lines: textAnalytics.lines_count,
+          renderTime: textAnalytics.render_time_ms,
+          failed: textAnalytics.failed,
+          fallback: textAnalytics.fallback_applied
+        });
+      }
+
+      // Check if composition failed
+      if (!composeResult.success) {
+        throw new Error('Composition failed');
+      }
     } catch (error) {
       return NextResponse.json(
         {
@@ -205,10 +229,42 @@ export async function POST(
 
         // Update active version's file_path with composed image path
         const versionIndex = updatedAsset.active_version! - 1;
-        updatedAsset.versions[versionIndex] = {
+        const versionUpdate: any = {
           ...updatedAsset.versions[versionIndex],
           file_path: publicUrl
         };
+
+        // Add text overlay analytics to version if available
+        if (composeResult.analytics?.text_overlay) {
+          const textAnalytics = composeResult.analytics.text_overlay;
+          versionUpdate.text_overlay_applied = textAnalytics.enabled && !textAnalytics.failed;
+          versionUpdate.text_overlay_content = asset.text_overlay_content || undefined;
+          if (textAnalytics.position_tier_used && textAnalytics.position_y) {
+            versionUpdate.text_overlay_position = {
+              tier: textAnalytics.position_tier_used,
+              y: textAnalytics.position_y
+            };
+          }
+          versionUpdate.text_overlay_failed = textAnalytics.failed || false;
+          versionUpdate.text_overlay_error = textAnalytics.error;
+          versionUpdate.text_overlay_fallback_applied = textAnalytics.fallback_applied || false;
+        }
+
+        updatedAsset.versions[versionIndex] = versionUpdate;
+
+        // Store text overlay analytics in asset metadata
+        if (composeResult.analytics?.text_overlay) {
+          const textAnalytics = composeResult.analytics.text_overlay;
+          updatedAsset.text_overlay_analytics = {
+            position_tier_used: textAnalytics.position_tier_used!,
+            shadow_type: textAnalytics.shadow_type!,
+            lines_count: textAnalytics.lines_count!,
+            applied_at: new Date().toISOString(),
+            render_time_ms: textAnalytics.render_time_ms,
+            brightness_samples: textAnalytics.brightness_samples,
+            avg_brightness: textAnalytics.avg_brightness
+          };
+        }
 
         const updatedAssets = [...history.assets];
         updatedAssets[assetIndex] = updatedAsset;
