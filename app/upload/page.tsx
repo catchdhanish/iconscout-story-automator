@@ -2,15 +2,21 @@
 
 import { useState, ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import toast, { Toaster } from 'react-hot-toast';
+import Button from '@/components/Button';
+import toast from 'react-hot-toast';
+
+type UploadMode = 'manual' | 'csv';
 
 export default function UploadPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<UploadMode>('manual');
   const [assetFile, setAssetFile] = useState<File | null>(null);
   const [metaDescription, setMetaDescription] = useState('');
   const [date, setDate] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<{
     file?: string;
     description?: string;
@@ -20,8 +26,10 @@ export default function UploadPage() {
   // File input validation and preview generation
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    processFile(file);
+  };
 
-    // Clear previous errors
+  const processFile = (file: File | undefined) => {
     setErrors(prev => ({ ...prev, file: undefined }));
 
     if (!file) {
@@ -43,7 +51,7 @@ export default function UploadPage() {
     }
 
     // Validate file size (30MB)
-    const maxSize = 30 * 1024 * 1024; // 30MB in bytes
+    const maxSize = 30 * 1024 * 1024;
     if (file.size > maxSize) {
       setErrors(prev => ({
         ...prev,
@@ -54,10 +62,8 @@ export default function UploadPage() {
       return;
     }
 
-    // File is valid, set it and generate preview
     setAssetFile(file);
 
-    // Generate preview using FileReader
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreview(reader.result as string);
@@ -65,23 +71,60 @@ export default function UploadPage() {
     reader.readAsDataURL(file);
   };
 
+  // CSV file handling
+  const handleCsvChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'text/csv') {
+      setCsvFile(file);
+    } else {
+      toast.error('Please select a valid CSV file');
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      if (mode === 'csv') {
+        const file = e.dataTransfer.files[0];
+        if (file.type === 'text/csv') {
+          setCsvFile(file);
+        } else {
+          toast.error('Please drop a valid CSV file');
+        }
+      } else {
+        processFile(e.dataTransfer.files[0]);
+      }
+    }
+  };
+
   // Form validation
   const validateForm = (): boolean => {
     const newErrors: typeof errors = {};
 
-    // Validate file
     if (!assetFile) {
       newErrors.file = 'Please select an image file to upload.';
     }
 
-    // Validate meta description
     if (!metaDescription.trim()) {
       newErrors.description = 'Meta description is required.';
     } else if (metaDescription.trim().length < 10) {
       newErrors.description = 'Meta description must be at least 10 characters.';
     }
 
-    // Validate date format (if provided)
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       newErrors.date = 'Date must be in YYYY-MM-DD format.';
     }
@@ -94,7 +137,6 @@ export default function UploadPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    // Validate form
     if (!validateForm()) {
       toast.error('Please fix the errors before submitting.');
       return;
@@ -103,7 +145,6 @@ export default function UploadPage() {
     setUploading(true);
 
     try {
-      // Create FormData
       const formData = new FormData();
       formData.append('assetFile', assetFile!);
       formData.append('metaDescription', metaDescription.trim());
@@ -111,7 +152,6 @@ export default function UploadPage() {
         formData.append('date', date);
       }
 
-      // POST to upload API
       const response = await fetch('/api/assets/upload', {
         method: 'POST',
         body: formData
@@ -120,11 +160,9 @@ export default function UploadPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Success - show toast and redirect
         toast.success('Asset uploaded successfully!');
         router.push('/');
       } else {
-        // Error from API
         toast.error(data.error || 'Failed to upload asset');
       }
     } catch (error) {
@@ -135,160 +173,276 @@ export default function UploadPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Toaster position="top-right" />
+  // CSV upload handler
+  const handleCsvUpload = async () => {
+    if (!csvFile) {
+      toast.error('Please select a CSV file');
+      return;
+    }
 
-      <div className="container mx-auto px-4 py-8">
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('csvFile', csvFile);
+
+      const response = await fetch('/api/assets/upload-csv', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`${data.count || 0} assets uploaded successfully!`);
+        router.push('/');
+      } else {
+        toast.error(data.error || 'Failed to upload CSV');
+      }
+    } catch (error) {
+      console.error('CSV upload error:', error);
+      toast.error('An error occurred while uploading. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-bg-primary pt-24 pb-12 px-6">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Upload Asset
+        <div>
+          <h1 className="text-4xl font-bold text-fg-primary tracking-tight mb-2">
+            Upload Assets
           </h1>
-          <p className="text-gray-600">
-            Upload a new image asset with description
+          <p className="text-lg text-fg-secondary">
+            Add new assets to create Instagram Stories
           </p>
         </div>
 
-        {/* Form Card */}
-        <div className="max-w-[600px] mx-auto">
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg border border-gray-200 p-8">
+        {/* Mode Selector */}
+        <div className="flex gap-2 p-1 bg-bg-secondary border border-border-primary rounded-lg w-fit">
+          <button
+            onClick={() => setMode('manual')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              mode === 'manual'
+                ? 'bg-bg-tertiary text-fg-primary'
+                : 'text-fg-secondary hover:text-fg-primary'
+            }`}
+          >
+            Manual Entry
+          </button>
+          <button
+            onClick={() => setMode('csv')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              mode === 'csv'
+                ? 'bg-bg-tertiary text-fg-primary'
+                : 'text-fg-secondary hover:text-fg-primary'
+            }`}
+          >
+            CSV Upload
+          </button>
+        </div>
 
-            {/* File Input */}
-            <div className="mb-6">
-              <label htmlFor="assetFile" className="block text-sm font-medium text-gray-700 mb-2">
-                Asset File *
-              </label>
-              <div className="mt-1">
-                <input
-                  id="assetFile"
-                  type="file"
-                  accept=".png,.jpg,.jpeg"
-                  onChange={handleFileChange}
-                  disabled={uploading}
-                  className="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
-                    hover:file:bg-blue-100
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    cursor-pointer"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                PNG, JPG, or JPEG (max 30MB)
+        {/* Upload Form */}
+        <div className="bg-bg-secondary border border-border-primary rounded-xl p-8">
+          {mode === 'csv' ? (
+            // CSV Upload Mode
+            <div
+              className={`border-2 border-dashed rounded-xl p-12 text-center transition-all ${
+                dragActive
+                  ? 'border-brand-500 bg-brand-500/5'
+                  : 'border-border-secondary hover:border-brand-500/50'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <svg className="w-16 h-16 mx-auto mb-4 text-fg-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <h3 className="text-lg font-semibold text-fg-primary mb-2">
+                Drop your CSV file here
+              </h3>
+              <p className="text-sm text-fg-secondary mb-4">
+                or click to browse files
               </p>
-              {errors.file && (
-                <p className="mt-2 text-sm text-red-600">{errors.file}</p>
-              )}
-            </div>
-
-            {/* Image Preview */}
-            {preview && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preview
-                </label>
-                <div className="flex justify-center">
-                  <img
-                    src={preview}
-                    alt="Asset preview"
-                    className="w-[200px] h-[200px] object-cover rounded-md border-2 border-gray-200"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Meta Description */}
-            <div className="mb-6">
-              <label htmlFor="metaDescription" className="block text-sm font-medium text-gray-700 mb-2">
-                Meta Description *
-              </label>
-              <textarea
-                id="metaDescription"
-                value={metaDescription}
-                onChange={(e) => {
-                  setMetaDescription(e.target.value);
-                  if (errors.description) {
-                    setErrors(prev => ({ ...prev, description: undefined }));
-                  }
-                }}
-                placeholder="Describe this asset..."
-                rows={4}
-                disabled={uploading}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
-                  focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  placeholder-gray-400"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Minimum 10 characters
-              </p>
-              {errors.description && (
-                <p className="mt-2 text-sm text-red-600">{errors.description}</p>
-              )}
-            </div>
-
-            {/* Date Input */}
-            <div className="mb-8">
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
-                Date (Optional)
-              </label>
               <input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
-                  if (errors.date) {
-                    setErrors(prev => ({ ...prev, date: undefined }));
-                  }
-                }}
-                disabled={uploading}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
-                  focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                  disabled:opacity-50 disabled:cursor-not-allowed"
+                type="file"
+                accept=".csv"
+                onChange={handleCsvChange}
+                className="hidden"
+                id="csv-input"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Defaults to current date if not specified
+              <label htmlFor="csv-input" className="inline-block">
+                <span className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-medium rounded-lg transition-colors cursor-pointer inline-block">
+                  Select File
+                </span>
+              </label>
+              {csvFile && (
+                <p className="text-sm text-fg-primary mt-4">
+                  Selected: <span className="font-medium">{csvFile.name}</span>
+                </p>
+              )}
+              <p className="text-xs text-fg-tertiary mt-4">
+                CSV should include: date, asset_url, meta_description
               </p>
-              {errors.date && (
-                <p className="mt-2 text-sm text-red-600">{errors.date}</p>
+              {csvFile && (
+                <div className="mt-6">
+                  <Button
+                    variant="primary"
+                    onClick={handleCsvUpload}
+                    disabled={uploading}
+                    className="min-w-[200px]"
+                  >
+                    {uploading ? 'Uploading...' : 'Upload CSV'}
+                  </Button>
+                </div>
               )}
             </div>
-
-            {/* Submit Button */}
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => router.push('/')}
-                disabled={uploading}
-                className="flex-1 px-6 py-3 border border-gray-300 rounded-md text-gray-700 font-medium
-                  hover:bg-gray-50 transition-colors
-                  disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={uploading}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-md font-medium
-                  hover:bg-blue-600 transition-colors
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  flex items-center justify-center gap-2"
-              >
-                {uploading ? (
-                  <>
-                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <span>Upload Asset</span>
+          ) : (
+            // Manual Entry Mode
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Asset File */}
+              <div>
+                <label className="block text-sm font-medium text-fg-primary mb-2">
+                  Asset File *
+                </label>
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                    dragActive
+                      ? 'border-brand-500 bg-brand-500/5'
+                      : 'border-border-secondary hover:border-brand-500/50'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  {preview ? (
+                    <div className="space-y-4">
+                      <img
+                        src={preview}
+                        alt="Preview"
+                        className="w-48 h-48 object-cover rounded-lg mx-auto border-2 border-border-primary"
+                      />
+                      <p className="text-sm text-fg-secondary">{assetFile?.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssetFile(null);
+                          setPreview(null);
+                        }}
+                        className="text-sm text-brand-500 hover:text-brand-600"
+                      >
+                        Change file
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <svg className="w-12 h-12 mx-auto mb-4 text-fg-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm text-fg-secondary mb-4">
+                        Drag and drop your image here, or click to browse
+                      </p>
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        id="file-input"
+                      />
+                      <label htmlFor="file-input" className="inline-block">
+                        <span className="px-4 py-2 bg-bg-tertiary hover:bg-bg-tertiary/70 text-fg-primary border border-border-primary font-medium rounded-lg transition-colors cursor-pointer inline-block">
+                          Select File
+                        </span>
+                      </label>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-fg-tertiary mt-2">
+                  PNG, JPG, or JPEG (max 30MB)
+                </p>
+                {errors.file && (
+                  <p className="text-sm text-error mt-2">{errors.file}</p>
                 )}
-              </button>
-            </div>
-          </form>
+              </div>
+
+              {/* Meta Description */}
+              <div>
+                <label htmlFor="metaDescription" className="block text-sm font-medium text-fg-primary mb-2">
+                  Description *
+                </label>
+                <textarea
+                  id="metaDescription"
+                  value={metaDescription}
+                  onChange={(e) => {
+                    setMetaDescription(e.target.value);
+                    if (errors.description) {
+                      setErrors(prev => ({ ...prev, description: undefined }));
+                    }
+                  }}
+                  placeholder="Describe the asset..."
+                  rows={4}
+                  disabled={uploading}
+                  className="w-full px-4 py-3 bg-bg-tertiary border border-border-primary rounded-lg text-sm text-fg-primary placeholder:text-fg-tertiary focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all resize-none"
+                />
+                <p className="text-xs text-fg-tertiary mt-2">
+                  Minimum 10 characters
+                </p>
+                {errors.description && (
+                  <p className="text-sm text-error mt-2">{errors.description}</p>
+                )}
+              </div>
+
+              {/* Date */}
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-fg-primary mb-2">
+                  Scheduled Date (Optional)
+                </label>
+                <input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    if (errors.date) {
+                      setErrors(prev => ({ ...prev, date: undefined }));
+                    }
+                  }}
+                  disabled={uploading}
+                  className="w-full h-11 px-4 bg-bg-tertiary border border-border-primary rounded-lg text-sm text-fg-primary focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all"
+                />
+                <p className="text-xs text-fg-tertiary mt-2">
+                  Defaults to current date if not specified
+                </p>
+                {errors.date && (
+                  <p className="text-sm text-error mt-2">{errors.date}</p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push('/')}
+                  disabled={uploading}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={uploading}
+                  className="flex-1"
+                >
+                  {uploading ? 'Uploading...' : 'Upload Asset'}
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

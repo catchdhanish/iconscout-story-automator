@@ -144,9 +144,9 @@ export async function POST(
       );
     }
 
-    // Construct file paths
-    const backgroundPath = path.join(process.cwd(), 'public', activeVersion.file_path);
-    const assetPath = path.join(process.cwd(), 'public', asset.asset_url);
+    // Construct file paths (strip leading slash to avoid path.join treating as absolute)
+    const backgroundPath = path.join(process.cwd(), 'public', activeVersion.file_path.replace(/^\//, ''));
+    const assetPath = path.join(process.cwd(), 'public', asset.asset_url.replace(/^\//, ''));
     const outputFileName = `story-${assetId}-v${asset.active_version}.png`;
     const outputPath = path.join(process.cwd(), 'public', 'uploads', outputFileName);
     const publicUrl = `/uploads/${outputFileName}`;

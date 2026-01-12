@@ -10,7 +10,16 @@
       "Bash(git init:*)",
       "Bash(git commit:*)",
       "Bash(cat:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(node:*)",
+      "Bash(npx jest --showConfig)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)",
+      "Bash(git -C /Users/dhanish.athif/Documents/claude-code-experiments status)",
+      "Bash(wc:*)",
+      "Skill(frontend-design)",
+      "Bash(npm run dev)"
     ]
   }
 }

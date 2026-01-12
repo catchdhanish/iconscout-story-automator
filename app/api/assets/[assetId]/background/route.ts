@@ -7,8 +7,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAsset, updateHistory } from '@/lib/history';
-import { generateBackground } from '@/lib/openrouter';
+import { generateBackground, saveBase64Image } from '@/lib/openrouter';
+import { analyzeAsset } from '@/lib/vision';
+import { extractDominantColors } from '@/lib/colors';
 import type { AssetVersion } from '@/lib/types';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 /**
  * Default system prompt for background generation
@@ -36,12 +40,27 @@ VISUAL APPROACH:
 - Ensure the center area has visual interest but remains suitable for overlay`;
 
 /**
- * Generate default user prompt using asset description
+ * Generate default user prompt using asset description, vision analysis, and colors
  */
-function generateDefaultUserPrompt(metaDescription: string): string {
+function generateDefaultUserPrompt(
+  metaDescription: string,
+  visionDescription?: string,
+  dominantColors?: string[]
+): string {
+  const colorPalette = dominantColors && dominantColors.length > 0
+    ? dominantColors.join(', ')
+    : 'vibrant and bold colors';
+
+  const assetDesc = visionDescription || metaDescription;
+
   return `Create an Instagram Story background with the following characteristics:
 
-ASSET DESCRIPTION: ${metaDescription}
+ASSET DESCRIPTION: ${assetDesc}
+META DESCRIPTION: ${metaDescription}
+SUGGESTED COLOR PALETTE (use as guidance, not strict requirement): ${colorPalette}
+
+Design a complementary background that enhances this asset while allowing it to remain the focal point.
+
 STYLE REQUIREMENTS:
 - Abstract and gradient-based design
 - Vibrant colors that enhance without competing
@@ -83,6 +102,49 @@ export async function POST(
       );
     }
 
+    // Get local asset path (assets are already saved during upload)
+    const localAssetPath = path.join(
+      process.cwd(),
+      'public',
+      asset.asset_url.replace(/^\//, '')
+    );
+
+    // Run vision analysis if not already done
+    if (!asset.asset_vision_description) {
+      try {
+        const description = await analyzeAsset(localAssetPath);
+        await updateHistory((history) => {
+          const idx = history.assets.findIndex(a => a.id === assetId);
+          if (idx !== -1) {
+            history.assets[idx].asset_vision_description = description;
+          }
+          return history;
+        });
+        asset.asset_vision_description = description;
+      } catch (error) {
+        console.error('Vision analysis failed:', error);
+        // Use meta_description as fallback
+      }
+    }
+
+    // Run color extraction if not already done
+    if (!asset.dominant_colors || asset.dominant_colors.length === 0) {
+      try {
+        const colors = await extractDominantColors(localAssetPath);
+        await updateHistory((history) => {
+          const idx = history.assets.findIndex(a => a.id === assetId);
+          if (idx !== -1) {
+            history.assets[idx].dominant_colors = colors;
+          }
+          return history;
+        });
+        asset.dominant_colors = colors;
+      } catch (error) {
+        console.error('Color extraction failed:', error);
+        // Continue without colors (prompt will use fallback)
+      }
+    }
+
     // Parse request body
     let body: { systemPrompt?: string; userPrompt?: string } = {};
     try {
@@ -94,15 +156,19 @@ export async function POST(
 
     // Extract or use default prompts
     const systemPrompt = body.systemPrompt || DEFAULT_SYSTEM_PROMPT;
-    const userPrompt = body.userPrompt || generateDefaultUserPrompt(asset.meta_description);
+    const userPrompt = body.userPrompt || generateDefaultUserPrompt(
+      asset.meta_description,
+      asset.asset_vision_description,
+      asset.dominant_colors
+    );
 
     // Combine prompts for storage
     const fullPromptUsed = `SYSTEM:\n${systemPrompt}\n\nUSER:\n${userPrompt}`;
 
     // Call generateBackground from lib/openrouter.ts
-    let backgroundDescription: string;
+    let backgroundImageData: string;
     try {
-      backgroundDescription = await generateBackground(systemPrompt, userPrompt);
+      backgroundImageData = await generateBackground(systemPrompt, userPrompt);
     } catch (error) {
       return NextResponse.json(
         {
@@ -113,12 +179,34 @@ export async function POST(
       );
     }
 
+    // Save generated background image to disk
+    const assetDir = path.join(process.cwd(), 'public', 'uploads', assetId);
+    await fs.mkdir(assetDir, { recursive: true });
+
+    const versionNumber = asset.versions.length + 1;
+    const backgroundFileName = `background_v${versionNumber}.png`;
+    const backgroundPath = path.join(assetDir, backgroundFileName);
+    const publicPath = `/uploads/${assetId}/${backgroundFileName}`;
+
+    // Save base64 image to disk
+    try {
+      await saveBase64Image(backgroundImageData, backgroundPath);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to save background image: ${error instanceof Error ? error.message : String(error)}`
+        },
+        { status: 500 }
+      );
+    }
+
     // Create new AssetVersion
     const newVersion: AssetVersion = {
-      version: asset.versions.length + 1,
+      version: versionNumber,
       created_at: new Date().toISOString(),
-      prompt_used: backgroundDescription, // AI-generated description, not input prompts
-      file_path: '' // Empty for now, will be populated when image is generated
+      prompt_used: fullPromptUsed, // Store full prompt (system + user)
+      file_path: publicPath // Populated with actual path
     };
 
     // Update asset with new version
