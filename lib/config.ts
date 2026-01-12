@@ -55,6 +55,30 @@ export const config = {
       yOffset: 288,
     },
   },
+
+  /**
+   * Text overlay configuration for Instagram Stories
+   */
+  textOverlay: {
+    enabled: process.env.TEXT_OVERLAY_ENABLED !== 'false',
+    defaultContent: process.env.DEFAULT_TEXT_OVERLAY_CONTENT ||
+      'Get this exclusive premium asset for free (today only!) - link in bio',
+    concurrency: parseInt(process.env.TEXT_OVERLAY_CONCURRENCY || '3', 10),
+    timeout: 10000,
+    font: {
+      family: 'DM Sans',
+      path: 'public/fonts/DMSans-Variable.woff2',
+      size: 42,
+      weight: '700'
+    },
+    positioning: {
+      tier1Y: 1560,
+      tier2Y: 1520,
+      tier3Y: 1480,
+      maxWidth: 900,
+      marginX: 90
+    }
+  },
 } as const;
 
 /**
