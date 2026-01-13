@@ -90,6 +90,11 @@ export const config = {
 } as const;
 
 /**
+ * Export commonly used config values for convenience
+ */
+export const BULK_APPROVAL_LIMIT = config.preview.bulkApprovalLimit;
+
+/**
  * Validates that all required environment variables are set
  * @throws {Error} If any required environment variables are missing
  */
