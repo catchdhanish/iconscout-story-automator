@@ -43,9 +43,9 @@ export function isPreviewStale(version: AssetVersion): boolean {
 export interface PreviewResult {
   success: boolean;
   previewUrl?: string;
-  previewPath?: string;
+  generated_at?: string;
+  generation_time_ms?: number;
   error?: string;
-  processingTime?: number;
 }
 
 /**
@@ -150,6 +150,7 @@ export async function generatePreview(
         // 4. Update metadata on success
         // Validation happens inside callback for atomic operation (Issue #2 fix)
         const processingTime = Date.now() - startTime;
+        const generatedAt = new Date().toISOString();
         await updateHistory((hist) => {
           const assetIndex = hist.assets.findIndex(a => a.id === assetId);
           if (assetIndex === -1) return hist;
@@ -163,7 +164,7 @@ export async function generatePreview(
           hist.assets[assetIndex].versions[versionIndex] = {
             ...hist.assets[assetIndex].versions[versionIndex],
             preview_file_path: previewPath,
-            preview_generated_at: new Date().toISOString(),
+            preview_generated_at: generatedAt,
             preview_generation_time_ms: processingTime,
             preview_generation_failed: false
           };
@@ -174,8 +175,8 @@ export async function generatePreview(
         return {
           success: true,
           previewUrl: getPreviewUrl(assetId, version),
-          previewPath,
-          processingTime
+          generated_at: generatedAt,
+          generation_time_ms: processingTime
         };
 
       } catch (error) {

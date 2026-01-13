@@ -103,6 +103,8 @@ describe('generatePreview', () => {
 
     expect(result.success).toBe(true);
     expect(result.previewUrl).toBe('/uploads/test-id/preview-v1.png');
+    expect(result.generated_at).toBeDefined();
+    expect(result.generation_time_ms).toBeDefined();
     expect(composition.composeStory).toHaveBeenCalledWith(
       expect.stringContaining('v1.png'),
       expect.stringContaining('test-id.png'),
