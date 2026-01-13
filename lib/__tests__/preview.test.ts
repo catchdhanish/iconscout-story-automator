@@ -82,8 +82,15 @@ describe('generatePreview', () => {
       ]
     };
 
-    (readHistory as jest.Mock).mockResolvedValue({
+    const mockHistory = {
       assets: [mockAsset]
+    };
+
+    (readHistory as jest.Mock).mockResolvedValue(mockHistory);
+
+    // Mock updateHistory to actually execute the callback
+    (updateHistory as jest.Mock).mockImplementation(async (callback) => {
+      callback(mockHistory);
     });
 
     (composition.composeStory as jest.Mock).mockResolvedValue({
@@ -106,8 +113,15 @@ describe('generatePreview', () => {
   });
 
   it('should handle missing asset', async () => {
-    (readHistory as jest.Mock).mockResolvedValue({
+    const mockHistory = {
       assets: []
+    };
+
+    (readHistory as jest.Mock).mockResolvedValue(mockHistory);
+
+    // Mock updateHistory to execute callback and let it throw
+    (updateHistory as jest.Mock).mockImplementation(async (callback) => {
+      callback(mockHistory);
     });
 
     const result = await generatePreview('missing-id', 1);
@@ -131,8 +145,15 @@ describe('generatePreview', () => {
       ]
     };
 
-    (readHistory as jest.Mock).mockResolvedValue({
+    const mockHistory = {
       assets: [mockAsset]
+    };
+
+    (readHistory as jest.Mock).mockResolvedValue(mockHistory);
+
+    // Mock updateHistory to execute callback
+    (updateHistory as jest.Mock).mockImplementation(async (callback) => {
+      callback(mockHistory);
     });
 
     (composition.composeStory as jest.Mock)
