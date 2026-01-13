@@ -10,6 +10,7 @@ import { getAsset, updateHistory } from '@/lib/history';
 import { generateBackground, saveBase64Image } from '@/lib/openrouter';
 import { analyzeAsset } from '@/lib/vision';
 import { extractDominantColors } from '@/lib/colors';
+import { generatePreview } from '@/lib/preview';
 import type { AssetVersion } from '@/lib/types';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -239,6 +240,17 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    // Generate preview asynchronously (don't block response)
+    generatePreview(assetId, newVersion.version)
+      .then(result => {
+        if (!result.success) {
+          console.warn(`Preview generation failed for ${assetId} v${newVersion.version}:`, result.error);
+        }
+      })
+      .catch(error => {
+        console.error(`Preview generation error for ${assetId} v${newVersion.version}:`, error);
+      });
 
     // Return success response
     return NextResponse.json({
