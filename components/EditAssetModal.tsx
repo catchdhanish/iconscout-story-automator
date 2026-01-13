@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { AssetMetadata } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { AssetMetadata, AssetVersion } from '@/lib/types';
 import Modal from './Modal';
 import Button from './Button';
 import toast from 'react-hot-toast';
@@ -14,6 +14,17 @@ interface EditAssetModalProps {
   onSchedule?: (id: string) => void;
   onDelete?: (id: string) => void;
   onVersionChange?: (id: string, version: number) => void;
+}
+
+function isPreviewStale(version: AssetVersion): boolean {
+  if (!version.preview_generated_at) {
+    return true;
+  }
+
+  const versionTime = new Date(version.created_at).getTime();
+  const previewTime = new Date(version.preview_generated_at).getTime();
+
+  return previewTime < versionTime;
 }
 
 export default function EditAssetModal({
@@ -29,11 +40,57 @@ export default function EditAssetModal({
   const [refinementPrompt, setRefinementPrompt] = useState('');
   const [regenerating, setRegenerating] = useState(false);
   const [showSafeZones, setShowSafeZones] = useState(false);
+  const [showTextOverlay, setShowTextOverlay] = useState(false);
+  const [textOverlaySVG, setTextOverlaySVG] = useState<string | null>(null);
+  const [loadingTextSVG, setLoadingTextSVG] = useState(false);
 
   if (!asset) return null;
 
   const currentVersion = asset.versions.find(v => v.version === selectedVersion);
-  const previewUrl = currentVersion?.file_path || asset.asset_url;
+
+  // Determine preview URL (priority order)
+  const previewUrl = currentVersion?.preview_file_path && !isPreviewStale(currentVersion)
+    ? currentVersion.preview_file_path
+    : currentVersion?.file_path || asset.asset_url;
+
+  const isLoadingPreview = currentVersion?.preview_file_path === undefined &&
+                           currentVersion?.file_path !== undefined;
+
+  // Fetch text SVG when toggle is enabled
+  useEffect(() => {
+    if (!showTextOverlay || !asset.id) {
+      setTextOverlaySVG(null);
+      return;
+    }
+
+    setLoadingTextSVG(true);
+
+    fetch(`/api/assets/${asset.id}/text-svg`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.svg) {
+          setTextOverlaySVG(data.svg);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load text SVG:', error);
+      })
+      .finally(() => {
+        setLoadingTextSVG(false);
+      });
+  }, [showTextOverlay, asset.id]);
+
+  // Keyboard shortcut for text overlay (T key)
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 't' || e.key === 'T') {
+        setShowTextOverlay(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   const handleRegenerateBackground = async () => {
     if (!refinementPrompt.trim()) {
@@ -84,9 +141,25 @@ export default function EditAssetModal({
                 className="w-full h-full object-cover rounded-lg shadow-2xl"
               />
 
+              {/* Loading indicator for preview generation */}
+              {isLoadingPreview && (
+                <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs px-2 py-1 rounded">
+                  Generating preview...
+                </div>
+              )}
+
+              {/* Text overlay layer */}
+              {showTextOverlay && textOverlaySVG && (
+                <div
+                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                  style={{ zIndex: 10 }}
+                  dangerouslySetInnerHTML={{ __html: textOverlaySVG }}
+                />
+              )}
+
               {/* Safe Zone Overlay */}
               {showSafeZones && (
-                <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
                   {/* Top Safe Zone (250px at full size = ~44px at preview) */}
                   <div className="absolute top-0 left-0 right-0 h-[44px] bg-red-500/30 border-b-2 border-red-500 flex items-center justify-center">
                     <span className="text-xs font-mono text-white bg-red-500 px-2 py-1 rounded">
@@ -119,13 +192,23 @@ export default function EditAssetModal({
               )}
             </div>
 
-            {/* Safe Zone Toggle */}
-            <button
-              onClick={() => setShowSafeZones(!showSafeZones)}
-              className="absolute top-4 right-4 px-3 py-1.5 bg-bg-secondary hover:bg-bg-secondary/80 border border-border-primary rounded-lg text-xs font-medium text-fg-primary transition-colors"
-            >
-              {showSafeZones ? 'Hide' : 'Show'} Safe Zones
-            </button>
+            {/* Toggle Controls */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2">
+              <button
+                onClick={() => setShowSafeZones(!showSafeZones)}
+                className="px-3 py-1.5 bg-bg-secondary hover:bg-bg-secondary/80 border border-border-primary rounded-lg text-xs font-medium text-fg-primary transition-colors"
+              >
+                {showSafeZones ? 'Hide' : 'Show'} Safe Zones (S)
+              </button>
+              <button
+                onClick={() => setShowTextOverlay(!showTextOverlay)}
+                className="px-3 py-1.5 bg-bg-secondary hover:bg-bg-secondary/80 border border-border-primary rounded-lg text-xs font-medium text-fg-primary transition-colors disabled:opacity-50"
+                disabled={loadingTextSVG}
+              >
+                {showTextOverlay ? 'Hide' : 'Show'} Text Overlay (T)
+                {loadingTextSVG && ' (loading...)'}
+              </button>
+            </div>
           </div>
 
           {/* Version History Carousel */}
