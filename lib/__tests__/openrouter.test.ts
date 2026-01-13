@@ -66,7 +66,7 @@ describe('OpenRouter API Client', () => {
             'HTTP-Referer': 'https://iconscout.com',
             'X-Title': 'IconScout Story Automator'
           },
-          body: expect.stringContaining('google/gemini-2.0-flash-exp:free'),
+          body: expect.stringContaining('google/gemini-2.5-flash-image'),
           signal: expect.any(AbortSignal)
         })
       );
@@ -75,13 +75,12 @@ describe('OpenRouter API Client', () => {
       const callArgs = (global.fetch as any).mock.calls[0];
       const body = JSON.parse(callArgs[1].body);
       expect(body).toEqual({
-        model: 'google/gemini-2.0-flash-exp:free',
+        model: 'google/gemini-2.5-flash-image',
         messages: [
           { role: 'system', content: mockSystemPrompt },
           { role: 'user', content: mockUserPrompt }
         ],
-        temperature: 0.7,
-        max_tokens: 1024
+        temperature: 0.7
       });
     });
 
@@ -202,7 +201,7 @@ describe('OpenRouter API Client', () => {
 
       await expect(
         generateBackground(mockSystemPrompt, mockUserPrompt)
-      ).rejects.toThrow('Invalid response format: missing message content');
+      ).rejects.toThrow('Invalid response format: no content found');
     });
   });
 });

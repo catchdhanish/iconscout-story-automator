@@ -73,12 +73,23 @@ pm2 startup
 - Prompt engineering: System + user prompt split with strict "no asset drawing" rules
 
 **Step 3: Image Composition**
-- Background layer + asset overlay using Sharp
+- Three-layer composition using Sharp:
+  1. Background layer (1080x1920px)
+  2. Asset overlay (centered in safe zone)
+  3. Text overlay (promotional message)
 - Safe zone calculations:
   - Top 250px (Instagram UI)
   - Bottom 180px (interaction area)
   - Center 70% (756x1344px) for asset
 - Asset scaling preserves aspect ratio, centered in safe zone
+- Text overlay with adaptive positioning:
+  - Font: DM Sans Variable (700 weight, 42px)
+  - Positioning: Tiered (Y=1560/1520/1480px) based on asset bottom edge
+  - Shadow: Adaptive (dark/light) using 9-point brightness sampling
+  - Max width: 900px (90px margins)
+  - Default text: "Get this exclusive premium asset for free (today only!) - link in bio"
+  - Configuration: TEXT_OVERLAY_ENABLED, DEFAULT_TEXT_OVERLAY_CONTENT, TEXT_OVERLAY_CONCURRENCY
+  - Analytics tracking: tier, shadow type, brightness samples, render time
 - Version management: Each regeneration creates new version (v1.png, v2.png...)
 
 **Step 4: Scheduling & Publication**

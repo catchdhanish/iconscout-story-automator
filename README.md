@@ -11,6 +11,11 @@ The IconScout Story Automator is an internal dashboard that simplifies and autom
 - **Asset Upload and Management** - Secure upload and version control for images with metadata tracking
 - **AI-Powered Background Generation** - Uses OpenRouter (Gemini 2.0 Pro) for intelligent background creation
 - **Story Composition** - Automatically composes story layouts with dominant color extraction and styling
+- **Promotional text overlay with adaptive positioning**
+  - Intelligent tier selection based on asset geometry
+  - Adaptive shadow (dark/light) based on background brightness
+  - DM Sans Variable font with manual hyphenation support
+  - Configurable text content via environment variables
 - **Automated Scheduling** - Integrates with Blotato API for direct Instagram Story scheduling
 - **Dashboard Interface** - User-friendly gallery view and upload interface
 - **Version Control** - Maintains multiple versions of generated backgrounds per asset
