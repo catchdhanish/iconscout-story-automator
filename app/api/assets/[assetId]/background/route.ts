@@ -242,7 +242,7 @@ export async function POST(
     }
 
     // Generate preview asynchronously (don't block response)
-    generatePreview(assetId, newVersion.version)
+    void generatePreview(assetId, newVersion.version)
       .then(result => {
         if (!result.success) {
           console.warn(`Preview generation failed for ${assetId} v${newVersion.version}:`, result.error);
