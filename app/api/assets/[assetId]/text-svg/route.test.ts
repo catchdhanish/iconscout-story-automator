@@ -231,4 +231,25 @@ describe('GET /api/assets/[assetId]/text-svg', () => {
     expect(response.status).toBe(500);
     expect(data.error).toBe('Failed to generate text SVG');
   });
+
+  it('should return 400 if assetId is invalid', async () => {
+    const request = new NextRequest('http://localhost/api/assets//text-svg');
+    const response = await GET(request, { params: { assetId: '' } });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Invalid asset ID');
+  });
+
+  it('should return 400 if custom content is too long', async () => {
+    const longContent = 'a'.repeat(501);
+    const request = new NextRequest(
+      `http://localhost/api/assets/test-id/text-svg?content=${longContent}`
+    );
+    const response = await GET(request, { params: { assetId: 'test-id' } });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Content too long (max 500 characters)');
+  });
 });

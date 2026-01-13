@@ -42,6 +42,22 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const customContent = searchParams.get('content');
 
+    // Validate assetId
+    if (!assetId || typeof assetId !== 'string' || assetId.trim() === '') {
+      return NextResponse.json(
+        { error: 'Invalid asset ID' },
+        { status: 400 }
+      );
+    }
+
+    // Validate customContent if provided
+    if (customContent && customContent.length > 500) {
+      return NextResponse.json(
+        { error: 'Content too long (max 500 characters)' },
+        { status: 400 }
+      );
+    }
+
     // Read asset from history
     const history = await readHistory();
     const asset = history.assets.find((a) => a.id === assetId);
