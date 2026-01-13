@@ -14,8 +14,10 @@ interface AssetCardProps {
   onViewError?: (id: string) => void;
   onViewPrompt?: (id: string) => void;
   loading?: boolean;
-  onSelect?: (selected: boolean) => void;
+  // Selection props
+  isSelectable?: boolean;
   isSelected?: boolean;
+  onToggleSelection?: (id: string) => void;
 }
 
 export function AssetCard({
@@ -27,8 +29,9 @@ export function AssetCard({
   onViewError,
   onViewPrompt,
   loading = false,
-  onSelect,
+  isSelectable = false,
   isSelected = false,
+  onToggleSelection,
 }: AssetCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -36,37 +39,32 @@ export function AssetCard({
   const activeVersion = asset.versions.find(v => v.version === asset.active_version);
   const thumbnailUrl = activeVersion?.file_path || asset.asset_url;
 
-  const handleSelect = () => {
-    onSelect?.(!isSelected);
-  };
-
   return (
     <div
       className="group relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Selection Checkbox */}
-      {onSelect && (
-        <button
-          onClick={handleSelect}
-          className={`absolute top-3 left-3 z-10 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-            isSelected
-              ? 'bg-brand-500 border-brand-500'
-              : 'bg-bg-secondary/80 border-border-secondary backdrop-blur-sm hover:border-brand-500'
-          }`}
-          aria-label="Select asset"
-        >
-          {isSelected && (
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
+      {/* Checkbox for Draft assets */}
+      {isSelectable && asset.status === 'Draft' && (
+        <div className="absolute top-2 left-2 z-10">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelection?.(asset.id);
+            }}
+            className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-700 checked:bg-blue-500 cursor-pointer"
+            aria-label={`Select ${asset.meta_description}`}
+          />
+        </div>
       )}
 
       {/* Card Container */}
-      <div className="relative bg-bg-secondary border border-border-primary rounded-xl overflow-hidden transition-all duration-300 hover:border-border-secondary hover:shadow-lg">
+      <div className={`relative bg-bg-secondary border border-border-primary rounded-xl overflow-hidden transition-all duration-300 hover:border-border-secondary hover:shadow-lg ${
+        isSelected ? 'ring-2 ring-blue-500 bg-blue-900/20' : ''
+      }`}>
         {/* Story Preview (9:16 aspect ratio) */}
         <div className="relative aspect-[9/16] bg-gradient-to-br from-bg-tertiary to-bg-secondary overflow-hidden">
           <img
