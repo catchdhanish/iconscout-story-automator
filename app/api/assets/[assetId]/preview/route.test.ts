@@ -54,6 +54,25 @@ describe('POST /api/assets/[assetId]/preview', () => {
     expect(generatePreview).toHaveBeenCalledWith('test-id', 2);
   });
 
+  it('should return 404 if asset not found when using active version', async () => {
+    const { readHistory } = require('@/lib/history');
+    (readHistory as jest.Mock).mockResolvedValue({
+      assets: [] // Empty assets array - asset not found
+    });
+
+    const request = new NextRequest('http://localhost/api/assets/invalid-id/preview', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+
+    const response = await POST(request, { params: { assetId: 'invalid-id' } });
+    const data = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(data.success).toBe(false);
+    expect(data.error).toBe('Asset not found');
+  });
+
   it('should return error if generation fails', async () => {
     (generatePreview as jest.Mock).mockResolvedValue({
       success: false,

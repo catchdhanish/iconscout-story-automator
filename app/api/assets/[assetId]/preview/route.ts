@@ -9,6 +9,7 @@ export async function POST(
   try {
     const { assetId } = params;
     const body = await request.json();
+    // includeText is reserved for future use (spec section 2.4.2)
     let { version, includeText = false } = body;
 
     // If version not specified, use active version
