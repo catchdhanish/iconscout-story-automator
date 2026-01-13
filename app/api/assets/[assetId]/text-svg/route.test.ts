@@ -219,4 +219,16 @@ describe('GET /api/assets/[assetId]/text-svg', () => {
       })
     );
   });
+
+  it('should return 500 if an unexpected error occurs', async () => {
+    const { readHistory } = require('@/lib/history');
+    (readHistory as jest.Mock).mockRejectedValue(new Error('Database error'));
+
+    const request = new NextRequest('http://localhost/api/assets/test-id/text-svg');
+    const response = await GET(request, { params: { assetId: 'test-id' } });
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toBe('Failed to generate text SVG');
+  });
 });
