@@ -69,11 +69,12 @@ describe('POST /api/assets/bulk-approve', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
     expect(data.approved).toEqual(['asset-1', 'asset-2']);
     expect(data.failed).toEqual([]);
-    expect(data.summary.total).toBe(2);
-    expect(data.summary.approved).toBe(2);
-    expect(data.summary.failed).toBe(0);
+    expect(data.summary.total_selected).toBe(2);
+    expect(data.summary.total_approved).toBe(2);
+    expect(data.summary.total_failed).toBe(0);
     expect(mockUpdateHistory).toHaveBeenCalledTimes(2);
   });
 
@@ -132,11 +133,12 @@ describe('POST /api/assets/bulk-approve', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
     expect(data.approved).toEqual(['asset-1']);
     expect(data.failed).toEqual([]);
-    expect(data.summary.total).toBe(1); // Only Draft asset counted
-    expect(data.summary.approved).toBe(1);
-    expect(data.summary.failed).toBe(0);
+    expect(data.summary.total_selected).toBe(3); // All 3 assets were selected
+    expect(data.summary.total_approved).toBe(1);
+    expect(data.summary.total_failed).toBe(0);
     expect(mockUpdateHistory).toHaveBeenCalledTimes(1); // Only called for Draft asset
   });
 
@@ -201,6 +203,7 @@ describe('POST /api/assets/bulk-approve', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
     expect(data.approved).toEqual(['asset-1']);
     expect(data.failed).toEqual([]);
     expect(attemptCount).toBe(3); // Failed twice, succeeded on third attempt

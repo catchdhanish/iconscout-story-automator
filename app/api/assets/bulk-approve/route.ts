@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readHistory, updateHistory } from '@/lib/history';
 import { BULK_APPROVAL_LIMIT } from '@/lib/config';
+import type { BulkApproveRequest, BulkApproveResponse, AssetMetadata, AssetVersion } from '@/lib/types';
 import fs from 'fs';
 import path from 'path';
 
@@ -47,7 +48,7 @@ async function retryWithBackoff<T>(
 /**
  * Validate if an asset can be approved
  */
-function canApproveAsset(asset: any): { valid: boolean; reason?: string } {
+function canApproveAsset(asset: AssetMetadata): { valid: boolean; reason?: string } {
   // Must be in Draft status
   if (asset.status !== 'Draft') {
     return { valid: false, reason: `Asset is in ${asset.status} status, not Draft` };
@@ -60,7 +61,7 @@ function canApproveAsset(asset: any): { valid: boolean; reason?: string } {
 
   // Find the active version
   const activeVersionData = asset.versions?.find(
-    (v: any) => v.version === asset.active_version
+    (v: AssetVersion) => v.version === asset.active_version
   );
 
   if (!activeVersionData || !activeVersionData.file_path) {
@@ -113,16 +114,16 @@ export async function POST(request: NextRequest) {
     // Filter to only Draft assets and validate
     const draftAssets = assetIds
       .map((id: string) => {
-        const asset = history.assets.find((a: any) => a.id === id);
+        const asset = history.assets.find((a: AssetMetadata) => a.id === id);
         if (!asset) return null;
 
         const validation = canApproveAsset(asset);
         return validation.valid ? asset : null;
       })
-      .filter((asset: any) => asset !== null);
+      .filter((asset: AssetMetadata | null): asset is AssetMetadata => asset !== null);
 
     const approved: string[] = [];
-    const failed: Array<{ assetId: string; reason: string }> = [];
+    const failed: Array<{ id: string; reason: string }> = [];
 
     // Process assets sequentially to avoid lock contention
     for (const asset of draftAssets) {
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
         // Update asset status with retry logic
         await retryWithBackoff(async () => {
           await updateHistory((history) => {
-            const assetToUpdate = history.assets.find((a: any) => a.id === asset.id);
+            const assetToUpdate = history.assets.find((a: AssetMetadata) => a.id === asset.id);
             if (assetToUpdate) {
               assetToUpdate.status = 'Ready';
               assetToUpdate.updated_at = new Date().toISOString();
@@ -142,22 +143,25 @@ export async function POST(request: NextRequest) {
         approved.push(asset.id);
       } catch (error) {
         failed.push({
-          assetId: asset.id,
+          id: asset.id,
           reason: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
 
     // Return success response (even if some failed)
-    return NextResponse.json({
+    const response: BulkApproveResponse = {
+      success: true,
       approved,
       failed,
       summary: {
-        total: draftAssets.length,
-        approved: approved.length,
-        failed: failed.length
+        total_selected: assetIds.length,
+        total_approved: approved.length,
+        total_failed: failed.length
       }
-    });
+    };
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Bulk approve error:', error);
