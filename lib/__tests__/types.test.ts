@@ -1,4 +1,4 @@
-import type { AssetVersion } from '../types';
+import type { AssetVersion, BulkApproveRequest, BulkApproveResponse } from '../types';
 
 describe('AssetVersion with preview fields', () => {
   it('should support optional preview fields', () => {
@@ -26,5 +26,34 @@ describe('AssetVersion with preview fields', () => {
     };
 
     expect(version.preview_file_path).toBeUndefined();
+  });
+});
+
+describe('Bulk approval types', () => {
+  it('should support BulkApproveRequest structure', () => {
+    const request: BulkApproveRequest = {
+      assetIds: ['id1', 'id2', 'id3']
+    };
+
+    expect(request.assetIds).toHaveLength(3);
+  });
+
+  it('should support BulkApproveResponse structure', () => {
+    const response: BulkApproveResponse = {
+      success: true,
+      approved: ['id1', 'id2'],
+      failed: [
+        { id: 'id3', reason: 'Missing background' }
+      ],
+      summary: {
+        total_selected: 3,
+        total_approved: 2,
+        total_failed: 1
+      }
+    };
+
+    expect(response.approved).toHaveLength(2);
+    expect(response.failed).toHaveLength(1);
+    expect(response.summary.total_approved).toBe(2);
   });
 });

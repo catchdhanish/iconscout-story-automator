@@ -82,3 +82,27 @@ export interface AssetMetadata {
 export interface HistoryData {
   assets: AssetMetadata[];
 }
+
+/**
+ * Request to bulk approve multiple assets
+ */
+export interface BulkApproveRequest {
+  assetIds: string[];
+}
+
+/**
+ * Response from bulk approve operation
+ */
+export interface BulkApproveResponse {
+  success: boolean;
+  approved: string[];
+  failed: Array<{
+    id: string;
+    reason: string;
+  }>;
+  summary: {
+    total_selected: number;
+    total_approved: number;
+    total_failed: number;
+  };
+}
