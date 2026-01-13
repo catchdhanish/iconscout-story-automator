@@ -79,6 +79,14 @@ export const config = {
       marginX: 90
     }
   },
+
+  /**
+   * Preview configuration
+   */
+  preview: {
+    retentionDays: parseInt(process.env.PREVIEW_RETENTION_DAYS || '30', 10),
+    bulkApprovalLimit: parseInt(process.env.BULK_APPROVAL_LIMIT || '50', 10),
+  },
 } as const;
 
 /**

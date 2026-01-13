@@ -25,6 +25,11 @@ export interface AssetVersion {
   text_overlay_failed?: boolean;
   text_overlay_error?: string;
   text_overlay_fallback_applied?: boolean;
+  // Preview fields
+  preview_file_path?: string;
+  preview_generated_at?: string;
+  preview_generation_time_ms?: number;
+  preview_generation_failed?: boolean;
 }
 
 /**
