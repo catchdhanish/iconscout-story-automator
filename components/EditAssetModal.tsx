@@ -5,6 +5,7 @@ import { AssetMetadata, AssetVersion } from '@/lib/types';
 import Modal from './Modal';
 import Button from './Button';
 import toast from 'react-hot-toast';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface EditAssetModalProps {
   isOpen: boolean;
@@ -80,10 +81,21 @@ export default function EditAssetModal({
       });
   }, [showTextOverlay, asset.id]);
 
-  // Keyboard shortcut for text overlay (T key)
+  // Keyboard shortcuts for text overlay (T key) and safe zones (S key)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 't' || e.key === 'T') {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === 's' || e.key === 'S') {
+        setShowSafeZones(prev => !prev);
+      } else if (e.key === 't' || e.key === 'T') {
         setShowTextOverlay(prev => !prev);
       }
     };
@@ -153,7 +165,7 @@ export default function EditAssetModal({
                 <div
                   className="absolute top-0 left-0 w-full h-full pointer-events-none"
                   style={{ zIndex: 10 }}
-                  dangerouslySetInnerHTML={{ __html: textOverlaySVG }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(textOverlaySVG) }}
                 />
               )}
 
