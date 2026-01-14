@@ -278,17 +278,9 @@ export default function EditAssetModal({
               <h3 className="text-sm font-medium text-fg-primary">Version History</h3>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {asset.versions.map((version) => {
-                  // Apply staleness check for version carousel
-                  const isVersionPreviewStale = (v: AssetVersion): boolean => {
-                    if (!v.preview_generated_at) return true;
-                    const versionTime = new Date(v.created_at).getTime();
-                    const previewTime = new Date(v.preview_generated_at).getTime();
-                    return previewTime < versionTime;
-                  };
-
                   // 3-tier fallback for carousel thumbnails
                   const carouselThumbnail =
-                    (version.preview_file_path && !isVersionPreviewStale(version))
+                    (version.preview_file_path && !isPreviewStale(version))
                       ? version.preview_file_path
                       : version.file_path || asset.asset_url;
 
