@@ -1,6 +1,6 @@
 'use client';
 
-import { AssetMetadata } from '@/lib/types';
+import { AssetMetadata, AssetVersion } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -37,7 +37,20 @@ export function AssetCard({
 
   // Get the active version or the asset URL for the thumbnail
   const activeVersion = asset.versions.find(v => v.version === asset.active_version);
-  const thumbnailUrl = activeVersion?.file_path || asset.asset_url;
+
+  // Staleness check: preview is stale if generated before version creation
+  const isPreviewStale = (version: AssetVersion): boolean => {
+    if (!version.preview_generated_at) return true;
+    const versionTime = new Date(version.created_at).getTime();
+    const previewTime = new Date(version.preview_generated_at).getTime();
+    return previewTime < versionTime;
+  };
+
+  // 3-tier fallback: preview → background → original asset
+  const thumbnailUrl =
+    (activeVersion?.preview_file_path && !isPreviewStale(activeVersion))
+      ? activeVersion.preview_file_path
+      : activeVersion?.file_path || asset.asset_url;
 
   return (
     <div
