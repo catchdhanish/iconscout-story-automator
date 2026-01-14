@@ -51,24 +51,19 @@ describe('BulkActionToolbar', () => {
     expect(handleApprove).toHaveBeenCalledTimes(1);
   });
 
-  it('shows progress bar when approving', () => {
+  it('shows spinner when approving', () => {
     render(
       <BulkActionToolbar
         selectedCount={5}
         onApprove={jest.fn()}
         onCancel={jest.fn()}
         isApproving={true}
-        progress={{ current: 3, total: 5 }}
       />
     );
 
-    const progressBar = screen.getByRole('progressbar');
-    expect(progressBar).toBeInTheDocument();
-    expect(progressBar).toHaveAttribute('aria-valuenow', '60');
-    expect(progressBar).toHaveAttribute('aria-valuemin', '0');
-    expect(progressBar).toHaveAttribute('aria-valuemax', '100');
-    expect(screen.getByText('Approving 3 of 5 assets...')).toBeInTheDocument();
-    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getByText('Approving 5 assets...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /approve/i })).toHaveTextContent('Approving...');
+    expect(screen.getByRole('button', { name: /approve/i })).toBeDisabled();
   });
 
   it('uses singular "asset" for count of 1', () => {

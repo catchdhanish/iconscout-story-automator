@@ -86,9 +86,6 @@ describe('Bulk Approval Integration', () => {
       })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, assets: [] }) });
 
-    // Mock window.alert
-    const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
-
     render(<Dashboard />);
     await waitFor(() => screen.getByText('Test 1'));
 
@@ -108,8 +105,6 @@ describe('Bulk Approval Integration', () => {
         body: JSON.stringify({ assetIds: ['1'] })
       }));
     });
-
-    alertMock.mockRestore();
   });
 
   it('should clear selection when filters change', async () => {

@@ -290,6 +290,189 @@ Design a complementary background that enhances this asset while allowing it to 
 
 **Note:** No logo overlay required - Instagram displays profile logo automatically in top-left corner.
 
+**Note on Preview vs. Final Composition:**
+- Previews generated in section 2.4.2 are WITHOUT text overlay (for toggle functionality)
+- Final composition at scheduling includes text overlay (per TEXT_OVERLAY_ENABLED config)
+- Both use same `composeStory()` function with different `includeText` option
+
+#### 2.4.1 Text Overlay
+
+**Purpose:** Add promotional text ("Freebie of the Day!") to composed stories with intelligent positioning and adaptive shadow contrast.
+
+**Features:**
+- **Adaptive Positioning:** Three-tier system based on asset visual bottom edge (Y=1560px, 1520px, or 1480px)
+- **Adaptive Shadow:** Dark or light shadow selected via 9-point brightness sampling
+- **Typography:** DM Sans Variable font (700 weight, 72px size)
+- **Word Breaking:** Manual soft hyphens with 28-character line approximation
+- **Layout:** 900px max width (90px margins), centered horizontally
+
+**Process:**
+
+1. **Asset Bottom Detection:**
+   ```typescript
+   const assetBottomY = await detectAssetBottomEdge(composedImagePath);
+   // Scans from bottom to top for lowest non-background pixel
+   // Returns Y coordinate in full 1080x1920 canvas
+   ```
+
+2. **Position Tier Calculation:**
+   ```typescript
+   const positionY = calculateTextTier(assetBottomY);
+   // Tier 1: Y=1560px (asset bottom < 900px)
+   // Tier 2: Y=1520px (asset bottom 900-1100px)
+   // Tier 3: Y=1480px (asset bottom > 1100px)
+   ```
+
+3. **Brightness Sampling (9-point grid):**
+   ```typescript
+   const shadowColor = await determineShadowColor(composedImagePath, positionY);
+   // Sample 3x3 grid around text position
+   // Average brightness > 127.5 → 'dark' shadow
+   // Average brightness ≤ 127.5 → 'light' shadow
+   ```
+
+4. **SVG Text Generation:**
+   ```typescript
+   const svg = await generateTextSVG(content, shadowColor, positionY);
+   // Creates 1080x1920 SVG with:
+   // - Text centered at calculated Y position
+   // - 900px max width with word wrapping
+   // - Shadow: rgba(0,0,0,0.7) for dark or rgba(255,255,255,0.9) for light
+   // - DM Sans Variable font from public/fonts/
+   ```
+
+5. **Composition Integration:**
+   ```typescript
+   await composeStory(backgroundPath, assetPath, outputPath, {
+     includeText: true,  // Enable text overlay
+     textContent: 'Freebie of the Day!'
+   });
+   // Applies text as final layer after asset composition
+   ```
+
+**Metadata Tracking:**
+```json
+{
+  "text_overlay_analytics": {
+    "asset_bottom_y": 1250,
+    "position_tier": 3,
+    "position_y": 1480,
+    "shadow_color": "dark",
+    "brightness_samples": [125, 130, 128, ...],
+    "average_brightness": 127.8,
+    "render_time_ms": 234
+  }
+}
+```
+
+**Configuration:**
+- `TEXT_OVERLAY_ENABLED`: Enable/disable text overlay globally (default: true)
+- `TEXT_OVERLAY_CONCURRENCY`: Max simultaneous text renderings (default: 3)
+- `TEXT_OVERLAY_CONTENT`: Default text content (default: "Freebie of the Day!")
+
+**Error Handling:**
+- Retry once on failure
+- Silent fallback: compose without text if rendering fails
+- Track failure in metadata: `text_overlay_failed: true`
+
+**Performance:**
+- Typical render time: 200-300ms per story
+- Queue-based processing respects concurrency limit
+- 10-second timeout per operation
+
+#### 2.4.2 Composition Preview Generation
+
+**Purpose:** Generate a preview of the final composed story (background + asset + optional text) for user review before scheduling.
+
+**Trigger Points:**
+1. After successful background generation (POST `/api/assets/[assetId]/background`)
+2. After successful background regeneration
+3. When user changes active version in version carousel
+
+**Process:**
+
+1. **Input Validation:**
+   ```typescript
+   - Verify asset has active_version set
+   - Verify background file exists at version.file_path
+   - Verify asset file exists at asset.asset_url
+   ```
+
+2. **Preview Generation:**
+   ```typescript
+   const previewPath = `/public/uploads/${assetId}/preview-v${version}.png`;
+
+   const result = await composeStory(
+     backgroundPath,     // Active version background
+     assetPath,          // Original asset from asset_url
+     previewPath,        // Output path for preview
+     { includeText: false }  // Text overlay added client-side
+   );
+   ```
+
+3. **Storage:**
+   - **Filename Pattern:** `/uploads/{assetId}/preview-v{versionNumber}.png`
+   - **Example:** `/uploads/abc-123/preview-v2.png`
+   - **Retention:** 30 days from creation
+   - **Cleanup:** Automated cron job deletes previews older than 30 days
+
+4. **Metadata Tracking:**
+   ```typescript
+   interface AssetVersion {
+     version: number;
+     created_at: string;
+     prompt_used: string;
+     file_path: string;          // Background file
+     preview_file_path?: string; // NEW: Preview composition file
+     preview_generated_at?: string;
+     preview_generation_time_ms?: number;
+     preview_generation_failed?: boolean;
+   }
+   ```
+
+5. **Error Handling:**
+   - **Preview Failure:** Asset remains approvable, user sees background-only preview
+   - **Log Level:** Warning (not error) - preview is optional
+   - **Retry:** Auto-retry once on failure, then mark as failed
+   - **User Feedback:** Subtle banner in modal: "Preview generation failed. Showing background only."
+
+6. **Performance:**
+   - **Queue-based:** Use existing TEXT_OVERLAY_CONCURRENCY limit (default: 3)
+   - **Concurrent Generations:** Maximum 3 simultaneous preview generations
+   - **Timeout:** 10 seconds per preview (uses composition timeout from config)
+   - **Priority:** Lower priority than scheduling operations
+
+7. **Cache Invalidation:**
+   - **Regenerate When:**
+     - Background version changes
+     - Active version changes
+     - Preview is older than current version timestamp
+   - **Stale Preview Handling:**
+     - Show existing preview immediately
+     - Display subtle "Updating..." indicator
+     - Regenerate in background
+     - Swap preview when ready (no reload required)
+
+8. **API Endpoint:**
+   ```
+   POST /api/assets/[assetId]/preview
+   Body: {
+     version?: number,      // Optional: specific version (default: active)
+     includeText?: boolean  // Optional: for future use (default: false)
+   }
+   Response: {
+     success: boolean,
+     previewUrl: string,
+     generated_at: string,
+     generation_time_ms: number
+   }
+   ```
+
+**Integration:**
+- Called automatically by background generation route after success
+- Called automatically when user changes active version in EditAssetModal
+- Can be called manually via API for on-demand regeneration
+
 #### 2.5 Review/Edit Interface (Gallery Grid)
 
 **Layout: Rich Card Grid with Infinite Scroll**
@@ -590,7 +773,7 @@ Design a complementary background that enhances this asset while allowing it to 
 
 ### 5.2 Status Definitions
 
-- **Draft:** Uploaded, background generated, pending user approval
+- **Draft:** Uploaded, background generated, preview available (if generation succeeded), pending bulk approval or manual approval
 - **Ready:** Approved by user, awaiting scheduling action
 - **Scheduled:** Successfully pushed to Blotato, awaiting publication time
 - **Published:** Post time has passed, confirmed via Blotato API status check
@@ -829,6 +1012,275 @@ Full Response:
 **Purpose:**
 - Educate users on safe zone constraints
 - Verify asset positioning before scheduling
+
+### 9.2 Composition Preview Display
+
+**Purpose:** Display the final composed story in Asset Details modal, allowing users to see exactly how the story will look before scheduling.
+
+**Modal Enhancements:**
+
+**Preview Image Source:**
+```typescript
+// Priority order for preview URL:
+1. currentVersion.preview_file_path (if exists and not stale)
+2. currentVersion.file_path (background only, if preview missing)
+3. asset.asset_url (original asset, fallback)
+```
+
+**Loading States:**
+- **Initial Load:** Show background immediately with "Generating preview..." badge
+- **Preview Ready:** Fade in preview image (replaces background)
+- **Stale Preview:** Show existing preview with subtle "Updating..." indicator
+- **Preview Failed:** Show background only with yellow banner: "Preview not available. Showing background only."
+
+**Text Overlay Toggle:**
+- **UI Element:** Toggle button next to "Show Safe Zones"
+- **Label:** "Show Text Overlay" with (T) keyboard shortcut hint
+- **Default State:** Off (shows composition without text)
+- **Behavior:**
+  ```typescript
+  When toggled ON:
+  1. Fetch text SVG from `/api/assets/[assetId]/text-svg` endpoint
+  2. Overlay SVG on preview using CSS positioning
+  3. Use actual generateTextSVG() output for accuracy
+  4. Position based on asset.text_overlay_analytics.position_y
+  ```
+
+**Text SVG Endpoint:**
+```
+GET /api/assets/[assetId]/text-svg
+Query: {
+  version?: number,  // Optional: specific version
+  content?: string   // Optional: custom text content
+}
+Response: {
+  svg: string,       // Complete SVG markup
+  position_y: number,
+  position_tier: 1 | 2 | 3,
+  shadow_color: string
+}
+```
+
+**Visual Design:**
+```css
+.preview-container {
+  position: relative;
+  width: 360px;
+  height: 640px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.text-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.safe-zones-overlay {
+  z-index: 20; /* Above text overlay */
+}
+```
+
+**Both Toggles Active:**
+- Safe zones and text overlay can be shown simultaneously
+- Safe zones layer renders above text to show coverage
+- Z-index order: Preview (base) → Text overlay → Safe zones overlay
+
+**Keyboard Shortcuts:**
+- **S:** Toggle safe zones on/off
+- **T:** Toggle text overlay on/off
+- **Space:** (In version carousel) Toggle between background and preview for focused version
+
+**Version Carousel Enhancement:**
+- Show thumbnails for all versions
+- Each thumbnail shows preview (if available) or background
+- Clicking version switches active version and regenerates preview
+- Preview generation happens in background, doesn't block UI
+
+### 9.3 Bulk Approval Workflow
+
+**Purpose:** Allow users to approve multiple Draft assets simultaneously, transitioning them to Ready status for scheduling.
+
+**User Flow:**
+
+1. **Selection Mode:**
+   - User views Dashboard with Draft assets visible
+   - Checkboxes appear on all Draft status cards
+   - Clicking checkbox selects/deselects individual asset
+   - Keyboard shortcuts:
+     - **Ctrl/Cmd+A:** Select all visible Draft assets
+     - **Escape:** Clear all selections and hide toolbar
+
+2. **Bulk Action Toolbar:**
+   ```
+   [X] 5 assets selected    [Approve Selected (5)]  [Cancel]
+   ```
+   - Appears above asset grid when 1+ assets selected
+   - Scrolls with content (not sticky/fixed)
+   - Count badge updates dynamically
+   - Disappears on filter change or search
+
+3. **Approve Selected Action:**
+   - **Validation:**
+     ```typescript
+     For each selected asset:
+     - Must have status === 'Draft'
+     - Must have active_version > 0
+     - Must have asset file at asset_url (validate existence)
+     ```
+
+   - **Mixed Selection Handling:**
+     - Automatically filter out non-Draft assets
+     - Show message: "Approved 3 of 5 selected (2 already Ready)"
+     - Only process Draft assets, skip others silently
+
+   - **Selection Limit:**
+     - Hard limit: 50 assets per bulk operation
+     - Error if exceeded: "Maximum 50 assets per bulk approval. Selected: 75. Please deselect some assets."
+     - Prevent checkbox selection after 50 reached
+
+4. **Progress Indication:**
+   ```
+   Approving assets: 23 / 50
+   [=============>              ] 46%
+   ```
+   - Progress bar with count and percentage
+   - Updates in real-time as each asset processes
+   - Non-blocking: Uses async processing
+   - Displays at top of dashboard (replaces toolbar)
+
+5. **API Endpoint:**
+   ```
+   POST /api/assets/bulk-approve
+   Body: {
+     assetIds: string[]  // Array of asset IDs to approve
+   }
+   Response: {
+     success: boolean,
+     approved: string[],      // IDs of successfully approved assets
+     failed: Array<{
+       id: string,
+       reason: string
+     }>,
+     summary: {
+       total_selected: number,
+       total_approved: number,
+       total_failed: number
+     }
+   }
+   ```
+
+6. **Processing Strategy:**
+   - **Type:** Best-effort (not atomic)
+   - **Behavior:** Process each asset independently
+   - **Partial Success:** If 5 of 10 fail, approve the 5 that succeed
+   - **Retry Logic:**
+     - Auto-retry network failures up to 3 times
+     - Exponential backoff: 1s, 2s, 4s
+     - Track retry count in progress display
+   - **Concurrency:** Sequential processing (avoid history.json lock contention)
+
+7. **Results Display:**
+   ```
+   ✓ Successfully approved 45 assets
+   ✗ 5 assets failed (missing background)
+
+   [View Dashboard]  [Retry Failed (5)]
+   ```
+   - Summary-only error messages (not detailed list)
+   - Failed assets remain in Draft status
+   - User can see failed assets in dashboard (still have Draft badge)
+   - Optional "Retry Failed" button to retry only failed assets
+
+8. **State Management:**
+   - **Selection State:** Component-level (not persisted)
+   - **Clear Selection When:**
+     - User applies filter
+     - User performs search
+     - User navigates to different page/view
+     - Bulk action completes successfully
+   - **Preserve Selection:**
+     - Never (always clear on view change for clarity)
+
+9. **Status Transition:**
+   ```
+   Before: status = 'Draft'
+   After:  status = 'Ready'
+
+   Update: updated_at = new Date().toISOString()
+   ```
+
+10. **Validation Rules:**
+    ```typescript
+    function canApproveAsset(asset: AssetMetadata): boolean {
+      if (asset.status !== 'Draft') return false;
+      if (!asset.active_version || asset.active_version === 0) return false;
+
+      // Verify background file exists
+      const backgroundPath = getVersionFilePath(asset, asset.active_version);
+      if (!fs.existsSync(backgroundPath)) return false;
+
+      // Verify asset file exists
+      const assetPath = path.join(process.cwd(), 'public', asset.asset_url);
+      if (!fs.existsSync(assetPath)) return false;
+
+      return true;
+    }
+    ```
+
+**UI Components:**
+
+**AssetCard Enhancement:**
+```tsx
+{status === 'Draft' && (
+  <input
+    type="checkbox"
+    checked={isSelected}
+    onChange={() => onToggleSelection(asset.id)}
+    className="absolute top-2 left-2 w-5 h-5"
+    aria-label={`Select ${asset.meta_description}`}
+  />
+)}
+```
+
+**Bulk Action Toolbar:**
+```tsx
+{selectedAssets.length > 0 && (
+  <div className="flex items-center gap-4 p-4 bg-gray-800 rounded-lg mb-4">
+    <span className="text-sm">
+      {selectedAssets.length} asset{selectedAssets.length !== 1 ? 's' : ''} selected
+    </span>
+    <button
+      onClick={handleBulkApprove}
+      disabled={selectedAssets.length > 50 || isApproving}
+      className="btn-primary"
+      aria-label={`Approve ${selectedAssets.length} selected assets`}
+    >
+      Approve Selected ({selectedAssets.length})
+    </button>
+    <button
+      onClick={() => setSelectedAssets([])}
+      className="btn-secondary"
+    >
+      Cancel
+    </button>
+  </div>
+)}
+```
+
+**Accessibility:**
+- **ARIA Labels:** All checkboxes, buttons, and toolbar have descriptive labels
+- **Focus Management:** After bulk action, focus moves to result message
+- **Visual Focus:** High-contrast focus rings on all interactive elements
+- **Keyboard Navigation:**
+  - Tab through checkboxes in grid order
+  - Arrow keys navigate between cards
+  - Space to toggle checkbox on focused card
 
 ---
 

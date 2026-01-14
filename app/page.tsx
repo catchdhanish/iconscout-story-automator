@@ -30,7 +30,6 @@ export default function Dashboard() {
   const [scheduledDateTime, setScheduledDateTime] = useState('');
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [isApproving, setIsApproving] = useState(false);
-  const [approvalProgress, setApprovalProgress] = useState<{ current: number; total: number } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [focusedAssetIndex, setFocusedAssetIndex] = useState(-1);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -161,43 +160,8 @@ export default function Dashboard() {
     };
   }, [assets]);
 
-  // Fetch assets on mount
-  useEffect(() => {
-    fetchAssets();
-  }, []);
-
-  // Filter assets when filter/search/sort changes
-  useEffect(() => {
-    applyFilters();
-  }, [statusFilter, searchQuery, sortBy, assets]);
-
-  // Clear selection when filters change
-  useEffect(() => {
-    setSelectedAssetIds([]);
-  }, [statusFilter, searchQuery]);
-
-  // Fetch assets from API
-  async function fetchAssets() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/assets');
-      const data = await response.json();
-
-      if (data.success) {
-        setAssets(data.assets || []);
-      } else {
-        toast.error(data.error || 'Failed to load assets');
-      }
-    } catch (error) {
-      toast.error('Failed to load assets');
-      console.error('Fetch assets error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Apply filters
-  function applyFilters() {
+  // Apply filters function
+  const applyFilters = useCallback(() => {
     let result = assets;
 
     // Filter by status
@@ -217,6 +181,41 @@ export default function Dashboard() {
     result = sortAssets(result, sortBy);
 
     setFilteredAssets(result);
+  }, [assets, statusFilter, searchQuery, sortBy]);
+
+  // Fetch assets on mount
+  useEffect(() => {
+    fetchAssets();
+  }, []);
+
+  // Filter assets when filter/search/sort changes
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedAssetIds([]);
+  }, [statusFilter, searchQuery]);
+
+  // Fetch assets from API
+  async function fetchAssets() {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/assets');
+      const data = await response.json();
+
+      if (data.success) {
+        setAssets(data.assets || []);
+      } else {
+        toast.error(data.error || 'Failed to load assets');
+      }
+    } catch (error) {
+      toast.error('Failed to load assets');
+      console.error('Fetch assets error:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   // Sort assets based on selected criteria
@@ -409,7 +408,6 @@ export default function Dashboard() {
     if (selectedAssetIds.length === 0) return;
 
     setIsApproving(true);
-    setApprovalProgress({ current: 0, total: selectedAssetIds.length });
 
     try {
       const response = await fetch('/api/assets/bulk-approve', {
@@ -430,13 +428,12 @@ export default function Dashboard() {
         // Clear selection
         setSelectedAssetIds([]);
       } else {
-        toast.error('Bulk approval failed: ' + (result.error || 'Unknown error'));
+        toast.error(`Bulk approval failed: ${result.error ?? 'Unknown error'}`);
       }
     } catch (error) {
       toast.error('Network error during bulk approval');
     } finally {
       setIsApproving(false);
-      setApprovalProgress(null);
     }
   }, [selectedAssetIds]);
 
@@ -615,7 +612,6 @@ export default function Dashboard() {
             onApprove={handleBulkApprove}
             onCancel={handleCancelSelection}
             isApproving={isApproving}
-            progress={approvalProgress}
           />
         )}
 
