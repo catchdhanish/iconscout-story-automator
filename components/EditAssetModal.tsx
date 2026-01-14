@@ -45,21 +45,19 @@ export default function EditAssetModal({
   const [textOverlaySVG, setTextOverlaySVG] = useState<string | null>(null);
   const [loadingTextSVG, setLoadingTextSVG] = useState(false);
 
-  if (!asset) return null;
-
-  const currentVersion = asset.versions.find(v => v.version === selectedVersion);
+  const currentVersion = asset?.versions.find(v => v.version === selectedVersion);
 
   // Determine preview URL (priority order)
   const previewUrl = currentVersion?.preview_file_path && !isPreviewStale(currentVersion)
     ? currentVersion.preview_file_path
-    : currentVersion?.file_path || asset.asset_url;
+    : currentVersion?.file_path || asset?.asset_url;
 
   const isLoadingPreview = currentVersion?.preview_file_path === undefined &&
                            currentVersion?.file_path !== undefined;
 
   // Fetch text SVG when toggle is enabled
   useEffect(() => {
-    if (!showTextOverlay || !asset.id) {
+    if (!showTextOverlay || !asset?.id) {
       setTextOverlaySVG(null);
       return;
     }
@@ -79,7 +77,7 @@ export default function EditAssetModal({
       .finally(() => {
         setLoadingTextSVG(false);
       });
-  }, [showTextOverlay, asset.id]);
+  }, [showTextOverlay, asset?.id]);
 
   // Keyboard shortcuts for text overlay (T key) and safe zones (S key)
   useEffect(() => {
@@ -105,7 +103,7 @@ export default function EditAssetModal({
   }, []);
 
   const handleRegenerateBackground = async () => {
-    if (!refinementPrompt.trim()) {
+    if (!asset?.id || !refinementPrompt.trim()) {
       toast.error('Please enter a refinement prompt');
       return;
     }
@@ -124,11 +122,13 @@ export default function EditAssetModal({
   };
 
   const handleVersionChange = (version: number) => {
+    if (!asset?.id) return;
     setSelectedVersion(version);
     onVersionChange?.(asset.id, version);
   };
 
   const handleDownload = () => {
+    if (!asset?.id) return;
     const link = document.createElement('a');
     link.href = previewUrl;
     link.download = `story-${asset.id}-v${selectedVersion}.png`;
@@ -137,6 +137,8 @@ export default function EditAssetModal({
     document.body.removeChild(link);
     toast.success('Download started');
   };
+
+  if (!asset) return null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Asset Details" size="full">
@@ -163,8 +165,14 @@ export default function EditAssetModal({
               {/* Text overlay layer */}
               {showTextOverlay && textOverlaySVG && (
                 <div
-                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                  style={{ zIndex: 10 }}
+                  className="absolute top-0 left-0 pointer-events-none"
+                  style={{
+                    zIndex: 10,
+                    width: '1080px',
+                    height: '1920px',
+                    transform: 'scale(0.3333)',
+                    transformOrigin: 'top left'
+                  }}
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(textOverlaySVG) }}
                 />
               )}
