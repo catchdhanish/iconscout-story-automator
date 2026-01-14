@@ -50,7 +50,7 @@ export default function EditAssetModal({
 
   // Determine preview URL (priority order)
   const previewUrl = currentVersion?.preview_file_path && !isPreviewStale(currentVersion)
-    ? currentVersion.preview_file_path
+    ? `${currentVersion.preview_file_path}?t=${currentVersion.preview_generated_at}`
     : currentVersion?.file_path || asset?.asset_url;
 
   const isLoadingPreview = currentVersion?.preview_file_path === undefined &&
