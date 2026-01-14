@@ -1033,6 +1033,48 @@ Full Response:
 - **Stale Preview:** Show existing preview with subtle "Updating..." indicator
 - **Preview Failed:** Show background only with yellow banner: "Preview not available. Showing background only."
 
+#### Preview Display Logic (Dashboard, Modal & Carousel)
+
+The dashboard gallery, asset details modal, and version carousel all use identical 3-tier fallback logic:
+
+**Priority Order:**
+1. **Preview (Composed):** `preview_file_path` - Background + asset composition (no text overlay)
+2. **Background:** `file_path` - AI-generated background only
+3. **Original Asset:** `asset_url` - Uploaded asset image
+
+**Staleness Check:**
+- Preview is considered stale if `preview_generated_at < version.created_at`
+- Stale previews automatically fall back to background
+- Ensures users always see previews matching current background version
+- Check is derived from metadata, not component state (persists across navigation)
+
+**Status Indicators:**
+
+Dashboard Gallery:
+- "Composing..." badge: Preview generation in progress (~2-5 seconds)
+- "Preview unavailable" badge: Preview generation failed, showing background fallback
+- No badge: Preview successfully displayed
+
+Version Carousel (Modal):
+- Mini "Composing" badge: Version preview generating
+- No badge: Preview ready or using fallback
+
+**Persistent State:**
+- Indicators are metadata-driven, not local component state
+- Status persists when navigating away and returning
+- No loss of context during preview generation
+
+**Performance:**
+- Browser caching handles repeated loads of larger preview files
+- No additional optimization needed beyond standard HTTP caching
+- Cache-Control headers ensure efficient revalidation
+
+**Notes:**
+- Previews are auto-generated after background creation completes
+- Draft assets (no background) show original uploaded asset
+- Version carousel shows composed previews (not bare backgrounds)
+- Migration is natural: Previews generated on next background regeneration
+
 **Text Overlay Toggle:**
 
 - **Label:** "Show Text Overlay" with (T) keyboard shortcut hint
