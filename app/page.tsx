@@ -16,6 +16,19 @@ import PromptPreviewModal from '@/components/PromptPreviewModal';
 import BulkActionToolbar from '@/components/BulkActionToolbar';
 import toast from 'react-hot-toast';
 
+// Helper for screen reader announcements
+function announceToScreenReader(message: string) {
+  const announcement = document.createElement('div');
+  announcement.setAttribute('role', 'status');
+  announcement.setAttribute('aria-live', 'polite');
+  announcement.setAttribute('aria-atomic', 'true');
+  announcement.className = 'sr-only';
+  announcement.textContent = message;
+
+  document.body.appendChild(announcement);
+  setTimeout(() => document.body.removeChild(announcement), 1000);
+}
+
 export default function Dashboard() {
   // State management
   const [assets, setAssets] = useState<AssetMetadata[]>([]);
@@ -380,11 +393,20 @@ export default function Dashboard() {
 
   // Handle asset selection
   const handleToggleSelection = useCallback((assetId: string) => {
-    setSelectedAssetIds(prev =>
-      prev.includes(assetId)
+    setSelectedAssetIds(prev => {
+      const newSelection = prev.includes(assetId)
         ? prev.filter(id => id !== assetId)
-        : [...prev, assetId]
-    );
+        : [...prev, assetId];
+
+      // Screen reader announcement
+      const message = newSelection.length > prev.length
+        ? `Asset selected. ${newSelection.length} asset${newSelection.length !== 1 ? 's' : ''} selected.`
+        : `Asset deselected. ${newSelection.length} asset${newSelection.length !== 1 ? 's' : ''} selected.`;
+
+      announceToScreenReader(message);
+
+      return newSelection;
+    });
   }, []);
 
   const handleAssetSelect = useCallback((id: string, selected: boolean) => {
@@ -604,6 +626,18 @@ export default function Dashboard() {
           selectedCount={selectedAssetIds.length}
           onBulkAction={() => {}}
         />
+
+        {/* Keyboard shortcuts help */}
+        <div className="mb-4 text-sm text-gray-400">
+          <span>Keyboard shortcuts: </span>
+          <kbd className="px-2 py-1 bg-gray-700 rounded">Ctrl+A</kbd> Select all Draft assets
+          <span className="mx-2">•</span>
+          <kbd className="px-2 py-1 bg-gray-700 rounded">Esc</kbd> Clear selection
+          <span className="mx-2">•</span>
+          <kbd className="px-2 py-1 bg-gray-700 rounded">T</kbd> Toggle text overlay (in modal)
+          <span className="mx-2">•</span>
+          <kbd className="px-2 py-1 bg-gray-700 rounded">S</kbd> Toggle safe zones (in modal)
+        </div>
 
         {/* Bulk Action Toolbar */}
         {selectedAssetIds.length > 0 && (

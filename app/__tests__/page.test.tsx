@@ -96,7 +96,7 @@ describe('Bulk Approval Integration', () => {
       expect(screen.getByText(/1 asset selected/i)).toBeInTheDocument();
     });
 
-    const approveButton = screen.getByLabelText('Approve selected assets');
+    const approveButton = screen.getByLabelText(/Approve \d+ selected assets/i);
     fireEvent.click(approveButton);
 
     await waitFor(() => {

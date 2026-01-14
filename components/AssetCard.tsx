@@ -55,7 +55,7 @@ export function AssetCard({
               e.stopPropagation();
               onToggleSelection?.(asset.id);
             }}
-            className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-700 checked:bg-blue-500 cursor-pointer"
+            className="w-5 h-5 rounded border-2 border-gray-300 bg-gray-700 checked:bg-blue-500 cursor-pointer focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-800"
             aria-label={`Select ${asset.meta_description}`}
           />
         </div>
