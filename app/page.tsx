@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AssetMetadata, Status } from '@/lib/types';
 import { useAutoPolling } from '@/hooks/useAutoPolling';
 import { AssetCard } from '@/components/AssetCard';
@@ -13,6 +13,7 @@ import KeyboardShortcutsHelp, { useKeyboardShortcuts } from '@/components/Keyboa
 import EditAssetModal from '@/components/EditAssetModal';
 import ErrorDetailsModal from '@/components/ErrorDetailsModal';
 import PromptPreviewModal from '@/components/PromptPreviewModal';
+import BulkActionToolbar from '@/components/BulkActionToolbar';
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
@@ -27,7 +28,9 @@ export default function Dashboard() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [scheduledDateTime, setScheduledDateTime] = useState('');
-  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvalProgress, setApprovalProgress] = useState<{ current: number; total: number } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [focusedAssetIndex, setFocusedAssetIndex] = useState(-1);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -44,7 +47,7 @@ export default function Dashboard() {
     onSelect: () => {
       if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
         const asset = filteredAssets[focusedAssetIndex];
-        handleAssetSelect(asset.id, !selectedAssetIds.has(asset.id));
+        handleAssetSelect(asset.id, !selectedAssetIds.includes(asset.id));
       }
     },
     onOpen: () => {
@@ -82,12 +85,13 @@ export default function Dashboard() {
       }
     },
     onSelectAll: () => {
-      const allIds = new Set(filteredAssets.map(a => a.id));
+      const draftAssets = filteredAssets.filter(a => a.status === 'Draft');
+      const allIds = draftAssets.map(a => a.id);
       setSelectedAssetIds(allIds);
-      toast.success(`Selected ${allIds.size} assets`);
+      toast.success(`Selected ${allIds.length} assets`);
     },
     onDeselectAll: () => {
-      setSelectedAssetIds(new Set());
+      setSelectedAssetIds([]);
       toast.success('Deselected all assets');
     },
     onNavigateLeft: () => {
@@ -166,6 +170,11 @@ export default function Dashboard() {
   useEffect(() => {
     applyFilters();
   }, [statusFilter, searchQuery, sortBy, assets]);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedAssetIds([]);
+  }, [statusFilter, searchQuery]);
 
   // Fetch assets from API
   async function fetchAssets() {
@@ -371,24 +380,65 @@ export default function Dashboard() {
   }
 
   // Handle asset selection
-  function handleAssetSelect(id: string, selected: boolean) {
-    setSelectedAssetIds(prev => {
-      const next = new Set(prev);
-      if (selected) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
-  }
+  const handleToggleSelection = useCallback((assetId: string) => {
+    setSelectedAssetIds(prev =>
+      prev.includes(assetId)
+        ? prev.filter(id => id !== assetId)
+        : [...prev, assetId]
+    );
+  }, []);
 
-  // Handle bulk actions
-  function handleBulkAction(action: string) {
-    toast(`Bulk ${action} functionality coming soon`, {
-      icon: 'ℹ️',
-    });
-  }
+  const handleAssetSelect = useCallback((id: string, selected: boolean) => {
+    setSelectedAssetIds(prev =>
+      selected
+        ? [...prev, id]
+        : prev.filter(assetId => assetId !== id)
+    );
+  }, []);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectedAssetIds([]);
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const draftAssets = filteredAssets.filter(a => a.status === 'Draft');
+    setSelectedAssetIds(draftAssets.map(a => a.id));
+  }, [filteredAssets]);
+
+  const handleBulkApprove = useCallback(async () => {
+    if (selectedAssetIds.length === 0) return;
+
+    setIsApproving(true);
+    setApprovalProgress({ current: 0, total: selectedAssetIds.length });
+
+    try {
+      const response = await fetch('/api/assets/bulk-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetIds: selectedAssetIds })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Show success toast
+        toast.success(`Successfully approved ${result.summary.total_approved} asset${result.summary.total_approved !== 1 ? 's' : ''}`);
+
+        // Refresh assets
+        await fetchAssets();
+
+        // Clear selection
+        setSelectedAssetIds([]);
+      } else {
+        toast.error('Bulk approval failed: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      toast.error('Network error during bulk approval');
+    } finally {
+      setIsApproving(false);
+      setApprovalProgress(null);
+    }
+  }, [selectedAssetIds]);
 
   // Handle regenerate background from edit modal
   async function handleRegenerateFromModal(id: string, refinementPrompt?: string) {
@@ -554,9 +604,20 @@ export default function Dashboard() {
           onSearch={setSearchQuery}
           onStatusFilter={setStatusFilter}
           onSort={setSortBy}
-          selectedCount={selectedAssetIds.size}
-          onBulkAction={handleBulkAction}
+          selectedCount={selectedAssetIds.length}
+          onBulkAction={() => {}}
         />
+
+        {/* Bulk Action Toolbar */}
+        {selectedAssetIds.length > 0 && (
+          <BulkActionToolbar
+            selectedCount={selectedAssetIds.length}
+            onApprove={handleBulkApprove}
+            onCancel={handleCancelSelection}
+            isApproving={isApproving}
+            progress={approvalProgress}
+          />
+        )}
 
         {/* Asset Gallery */}
         <section>
@@ -598,8 +659,9 @@ export default function Dashboard() {
                     onViewError={handleViewError}
                     onViewPrompt={handleViewPrompt}
                     loading={loadingAssetIds.has(asset.id)}
-                    onSelect={(selected) => handleAssetSelect(asset.id, selected)}
-                    isSelected={selectedAssetIds.has(asset.id)}
+                    isSelectable={true}
+                    isSelected={selectedAssetIds.includes(asset.id)}
+                    onToggleSelection={handleToggleSelection}
                   />
                 ))}
               </div>

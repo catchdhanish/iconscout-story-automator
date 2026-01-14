@@ -34,7 +34,10 @@ module.exports = {
     {
       displayName: "jsdom",
       testEnvironment: "jsdom",
-      testMatch: ["<rootDir>/components/**/*.test.tsx"],
+      testMatch: [
+        "<rootDir>/components/**/*.test.tsx",
+        "<rootDir>/app/**/*.test.tsx"
+      ],
       transform: {
         ...tsJestTransformCfg,
       },
