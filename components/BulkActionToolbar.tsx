@@ -15,14 +15,20 @@ export default function BulkActionToolbar({
   isApproving,
 }: BulkActionToolbarProps) {
   const approveButtonRef = useRef<HTMLButtonElement>(null);
+  const prevSelectedCountRef = useRef(0);
   const isOverLimit = selectedCount > BULK_APPROVAL_LIMIT;
   const assetText = selectedCount === 1 ? 'asset' : 'assets';
 
-  // Focus approve button when toolbar appears
+  // Focus approve button only when toolbar initially appears
   useEffect(() => {
-    if (!isApproving && selectedCount > 0) {
+    const wasHidden = prevSelectedCountRef.current === 0;
+    const isNowVisible = selectedCount > 0;
+
+    if (wasHidden && isNowVisible && !isApproving) {
       approveButtonRef.current?.focus();
     }
+
+    prevSelectedCountRef.current = selectedCount;
   }, [selectedCount, isApproving]);
 
   return (

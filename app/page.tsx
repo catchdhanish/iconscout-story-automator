@@ -26,7 +26,11 @@ function announceToScreenReader(message: string) {
   announcement.textContent = message;
 
   document.body.appendChild(announcement);
-  setTimeout(() => document.body.removeChild(announcement), 1000);
+  setTimeout(() => {
+    if (announcement.parentNode) {
+      document.body.removeChild(announcement);
+    }
+  }, 1000);
 }
 
 export default function Dashboard() {
@@ -53,73 +57,109 @@ export default function Dashboard() {
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptAsset, setPromptAsset] = useState<AssetMetadata | null>(null);
 
+  // Define asset selection handlers first
+  const handleAssetSelect = useCallback((id: string, selected: boolean) => {
+    setSelectedAssetIds(prev =>
+      selected
+        ? [...prev, id]
+        : prev.filter(assetId => assetId !== id)
+    );
+  }, []);
+
+  // Memoize keyboard shortcut callbacks
+  const handleHelpCallback = useCallback(() => setShowHelpModal(true), []);
+
+  const handleSelectCallback = useCallback(() => {
+    if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
+      const asset = filteredAssets[focusedAssetIndex];
+      handleAssetSelect(asset.id, !selectedAssetIds.includes(asset.id));
+    }
+  }, [focusedAssetIndex, filteredAssets, selectedAssetIds, handleAssetSelect]);
+
+  const handleOpenCallback = useCallback(() => {
+    if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
+      const asset = filteredAssets[focusedAssetIndex];
+      handleEdit(asset.id);
+    }
+  }, [focusedAssetIndex, filteredAssets]);
+
+  const handleGenerateBackgroundCallback = useCallback(() => {
+    if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
+      const asset = filteredAssets[focusedAssetIndex];
+      if (asset.status === 'Draft') {
+        handleGenerateBackground(asset.id);
+      }
+    }
+  }, [focusedAssetIndex, filteredAssets]);
+
+  const handleScheduleCallback = useCallback(() => {
+    if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
+      const asset = filteredAssets[focusedAssetIndex];
+      if (asset.status === 'Ready') {
+        handleSchedule(asset.id);
+      }
+    }
+  }, [focusedAssetIndex, filteredAssets]);
+
+  const handleEditCallback = useCallback(() => {
+    if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
+      const asset = filteredAssets[focusedAssetIndex];
+      handleEdit(asset.id);
+    }
+  }, [focusedAssetIndex, filteredAssets]);
+
+  const handleDeleteCallback = useCallback(() => {
+    if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
+      const asset = filteredAssets[focusedAssetIndex];
+      handleDelete(asset.id);
+    }
+  }, [focusedAssetIndex, filteredAssets]);
+
+  const handleSelectAllCallback = useCallback(() => {
+    const draftAssets = filteredAssets.filter(a => a.status === 'Draft');
+    const allIds = draftAssets.map(a => a.id);
+    setSelectedAssetIds(allIds);
+    toast.success(`Selected ${allIds.length} assets`);
+  }, [filteredAssets]);
+
+  const handleDeselectAllCallback = useCallback(() => {
+    setSelectedAssetIds([]);
+    toast.success('Deselected all assets');
+  }, []);
+
+  const handleNavigateLeftCallback = useCallback(() => {
+    setFocusedAssetIndex(prev => Math.max(0, prev - 1));
+  }, []);
+
+  const handleNavigateRightCallback = useCallback(() => {
+    setFocusedAssetIndex(prev => Math.min(filteredAssets.length - 1, prev + 1));
+  }, [filteredAssets.length]);
+
+  const handleNavigateUpCallback = useCallback(() => {
+    const cols = window.innerWidth >= 1280 ? 4 : window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1;
+    setFocusedAssetIndex(prev => Math.max(0, prev - cols));
+  }, []);
+
+  const handleNavigateDownCallback = useCallback(() => {
+    const cols = window.innerWidth >= 1280 ? 4 : window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1;
+    setFocusedAssetIndex(prev => Math.min(filteredAssets.length - 1, prev + cols));
+  }, [filteredAssets.length]);
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
-    onHelp: () => setShowHelpModal(true),
-    onSelect: () => {
-      if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
-        const asset = filteredAssets[focusedAssetIndex];
-        handleAssetSelect(asset.id, !selectedAssetIds.includes(asset.id));
-      }
-    },
-    onOpen: () => {
-      if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
-        const asset = filteredAssets[focusedAssetIndex];
-        handleEdit(asset.id);
-      }
-    },
-    onGenerateBackground: () => {
-      if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
-        const asset = filteredAssets[focusedAssetIndex];
-        if (asset.status === 'Draft') {
-          handleGenerateBackground(asset.id);
-        }
-      }
-    },
-    onSchedule: () => {
-      if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
-        const asset = filteredAssets[focusedAssetIndex];
-        if (asset.status === 'Ready') {
-          handleSchedule(asset.id);
-        }
-      }
-    },
-    onEdit: () => {
-      if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
-        const asset = filteredAssets[focusedAssetIndex];
-        handleEdit(asset.id);
-      }
-    },
-    onDelete: () => {
-      if (focusedAssetIndex >= 0 && focusedAssetIndex < filteredAssets.length) {
-        const asset = filteredAssets[focusedAssetIndex];
-        handleDelete(asset.id);
-      }
-    },
-    onSelectAll: () => {
-      const draftAssets = filteredAssets.filter(a => a.status === 'Draft');
-      const allIds = draftAssets.map(a => a.id);
-      setSelectedAssetIds(allIds);
-      toast.success(`Selected ${allIds.length} assets`);
-    },
-    onDeselectAll: () => {
-      setSelectedAssetIds([]);
-      toast.success('Deselected all assets');
-    },
-    onNavigateLeft: () => {
-      setFocusedAssetIndex(prev => Math.max(0, prev - 1));
-    },
-    onNavigateRight: () => {
-      setFocusedAssetIndex(prev => Math.min(filteredAssets.length - 1, prev + 1));
-    },
-    onNavigateUp: () => {
-      const cols = window.innerWidth >= 1280 ? 4 : window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1;
-      setFocusedAssetIndex(prev => Math.max(0, prev - cols));
-    },
-    onNavigateDown: () => {
-      const cols = window.innerWidth >= 1280 ? 4 : window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1;
-      setFocusedAssetIndex(prev => Math.min(filteredAssets.length - 1, prev + cols));
-    },
+    onHelp: handleHelpCallback,
+    onSelect: handleSelectCallback,
+    onOpen: handleOpenCallback,
+    onGenerateBackground: handleGenerateBackgroundCallback,
+    onSchedule: handleScheduleCallback,
+    onEdit: handleEditCallback,
+    onDelete: handleDeleteCallback,
+    onSelectAll: handleSelectAllCallback,
+    onDeselectAll: handleDeselectAllCallback,
+    onNavigateLeft: handleNavigateLeftCallback,
+    onNavigateRight: handleNavigateRightCallback,
+    onNavigateUp: handleNavigateUpCallback,
+    onNavigateDown: handleNavigateDownCallback,
   });
 
   // Check if there are assets that need polling (Draft or Scheduled status)
@@ -407,14 +447,6 @@ export default function Dashboard() {
 
       return newSelection;
     });
-  }, []);
-
-  const handleAssetSelect = useCallback((id: string, selected: boolean) => {
-    setSelectedAssetIds(prev =>
-      selected
-        ? [...prev, id]
-        : prev.filter(assetId => assetId !== id)
-    );
   }, []);
 
   const handleCancelSelection = useCallback(() => {

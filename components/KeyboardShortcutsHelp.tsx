@@ -184,5 +184,19 @@ export function useKeyboardShortcuts(callbacks: {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [callbacks]);
+  }, [
+    callbacks.onHelp,
+    callbacks.onSelect,
+    callbacks.onOpen,
+    callbacks.onGenerateBackground,
+    callbacks.onSchedule,
+    callbacks.onEdit,
+    callbacks.onDelete,
+    callbacks.onSelectAll,
+    callbacks.onDeselectAll,
+    callbacks.onNavigateLeft,
+    callbacks.onNavigateRight,
+    callbacks.onNavigateUp,
+    callbacks.onNavigateDown,
+  ]);
 }
