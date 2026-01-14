@@ -277,23 +277,46 @@ export default function EditAssetModal({
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-fg-primary">Version History</h3>
               <div className="flex gap-2 overflow-x-auto pb-2">
-                {asset.versions.map((version) => (
-                  <button
-                    key={version.version}
-                    onClick={() => handleVersionChange(version.version)}
-                    className={`flex-shrink-0 w-24 h-32 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedVersion === version.version
-                        ? 'border-brand-500 ring-2 ring-brand-500/20'
-                        : 'border-border-primary hover:border-border-secondary'
-                    }`}
-                  >
-                    <img
-                      src={version.file_path}
-                      alt={`Version ${version.version}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
+                {asset.versions.map((version) => {
+                  // Apply staleness check for version carousel
+                  const isVersionPreviewStale = (v: AssetVersion): boolean => {
+                    if (!v.preview_generated_at) return true;
+                    const versionTime = new Date(v.created_at).getTime();
+                    const previewTime = new Date(v.preview_generated_at).getTime();
+                    return previewTime < versionTime;
+                  };
+
+                  // 3-tier fallback for carousel thumbnails
+                  const carouselThumbnail =
+                    (version.preview_file_path && !isVersionPreviewStale(version))
+                      ? version.preview_file_path
+                      : version.file_path || asset.asset_url;
+
+                  return (
+                    <button
+                      key={version.version}
+                      onClick={() => handleVersionChange(version.version)}
+                      className={`flex-shrink-0 w-24 h-32 rounded-lg overflow-hidden border-2 transition-all relative ${
+                        selectedVersion === version.version
+                          ? 'border-brand-500 ring-2 ring-brand-500/20'
+                          : 'border-border-primary hover:border-border-secondary'
+                      }`}
+                    >
+                      <img
+                        src={carouselThumbnail}
+                        alt={`Version ${version.version}`}
+                        className="w-full h-full object-cover"
+                      />
+
+                      {/* Mini status indicator for carousel */}
+                      {version.file_path && !version.preview_file_path && !version.preview_generation_failed && (
+                        <div className="absolute top-1 right-1 bg-yellow-500/90 text-black text-[10px] px-1 rounded">
+                          Composing
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               <p className="text-xs text-fg-tertiary">
                 Viewing version {selectedVersion} of {asset.versions.length}
