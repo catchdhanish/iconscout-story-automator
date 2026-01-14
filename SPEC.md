@@ -1034,17 +1034,32 @@ Full Response:
 - **Preview Failed:** Show background only with yellow banner: "Preview not available. Showing background only."
 
 **Text Overlay Toggle:**
-- **UI Element:** Toggle button next to "Show Safe Zones"
+
 - **Label:** "Show Text Overlay" with (T) keyboard shortcut hint
 - **Default State:** Off (shows composition without text)
 - **Behavior:**
-  ```typescript
-  When toggled ON:
-  1. Fetch text SVG from `/api/assets/[assetId]/text-svg` endpoint
-  2. Overlay SVG on preview using CSS positioning
-  3. Use actual generateTextSVG() output for accuracy
-  4. Position based on asset.text_overlay_analytics.position_y
+  1. Fetch text SVG from GET /api/assets/[assetId]/text-svg
+  2. Scale SVG from 1080x1920 to 360x640 using CSS transform: scale(0.3333)
+  3. Overlay SVG on preview using absolute positioning with transform-origin: top-left
+  4. SVG container dimensions set to full 1080x1920, then scaled down proportionally
+  5. Position based on asset.text_overlay_analytics.position_y
+  6. Z-index: 10 (between preview and safe zones overlay)
+
+**Scaling Mathematics:**
+
+The text overlay SVG is generated at full Instagram Story resolution (1080x1920) for accurate server-side composition. When displaying on the client-side preview (360x640), the SVG must be scaled proportionally:
+
+- **Scale Factor:** 360 ÷ 1080 = 0.3333 (33.33%)
+- **CSS Implementation:**
+  ```css
+  .text-overlay {
+    width: 1080px;
+    height: 1920px;
+    transform: scale(0.3333);
+    transform-origin: top left;
+  }
   ```
+- **Why Not w-full h-full:** Setting width/height to 100% would stretch the SVG's internal coordinates, causing text positioning errors. Instead, we set explicit dimensions matching the SVG viewport, then scale the entire container.
 
 **Text SVG Endpoint:**
 ```
@@ -1075,8 +1090,10 @@ Response: {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 1080px;
+  height: 1920px;
+  transform: scale(0.3333);
+  transform-origin: top left;
   pointer-events: none;
   z-index: 10;
 }
