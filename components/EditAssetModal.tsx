@@ -44,6 +44,7 @@ export default function EditAssetModal({
   const [showTextOverlay, setShowTextOverlay] = useState(false);
   const [textOverlaySVG, setTextOverlaySVG] = useState<string | null>(null);
   const [loadingTextSVG, setLoadingTextSVG] = useState(false);
+  const [regeneratingPreview, setRegeneratingPreview] = useState(false);
 
   const currentVersion = asset?.versions.find(v => v.version === selectedVersion);
 
@@ -136,6 +137,34 @@ export default function EditAssetModal({
     link.click();
     document.body.removeChild(link);
     toast.success('Download started');
+  };
+
+  const handleRegeneratePreview = async () => {
+    if (!asset?.id) return;
+
+    setRegeneratingPreview(true);
+    try {
+      const response = await fetch(`/api/assets/${asset.id}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: selectedVersion })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Preview regenerated successfully');
+        // Trigger a re-render by updating the preview URL with cache buster
+        window.location.reload();
+      } else {
+        toast.error(data.error || 'Failed to regenerate preview');
+      }
+    } catch (error) {
+      toast.error('Failed to regenerate preview');
+      console.error('Preview regeneration error:', error);
+    } finally {
+      setRegeneratingPreview(false);
+    }
   };
 
   if (!asset) return null;
@@ -265,12 +294,36 @@ export default function EditAssetModal({
 
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={handleDownload} className="flex-1">
+            <Button
+              variant="secondary"
+              onClick={handleDownload}
+              className="flex-1"
+            >
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               Download
             </Button>
+
+            {/* NEW: Preview regeneration button */}
+            <Button
+              variant="secondary"
+              onClick={handleRegeneratePreview}
+              disabled={regeneratingPreview}
+              title="Regenerate preview composition"
+            >
+              {regeneratingPreview ? (
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+            </Button>
+
             {asset.status === 'Ready' && (
               <Button variant="primary" onClick={() => onSchedule?.(asset.id)} className="flex-1">
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -279,6 +332,7 @@ export default function EditAssetModal({
                 Schedule
               </Button>
             )}
+
             <Button variant="danger" onClick={() => onDelete?.(asset.id)}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
