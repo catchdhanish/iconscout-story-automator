@@ -12,9 +12,9 @@ import { config } from './config';
  * Response from Blotato /v2/posts endpoint
  */
 interface BlotatoResponse {
-  postId: string;
-  status: string;
-  scheduledTime: string;
+  postSubmissionId: string;
+  status?: string;
+  scheduledTime?: string;
 }
 
 /**
@@ -66,9 +66,18 @@ export async function scheduleStory(
 
   // Convert filesystem path to public URL
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const relativePath = imagePath
-    .replace(/^\.\/public/, '')
-    .replace(/^public/, '');
+  // Extract just the /uploads/... part from the full path
+  // Handle both absolute paths and relative paths
+  let relativePath = imagePath;
+  if (relativePath.includes('/public/uploads/')) {
+    relativePath = '/uploads/' + relativePath.split('/public/uploads/')[1];
+  } else if (relativePath.includes('public/uploads/')) {
+    relativePath = '/uploads/' + relativePath.split('public/uploads/')[1];
+  } else if (relativePath.startsWith('./public/')) {
+    relativePath = relativePath.replace(/^\.\/public/, '');
+  } else if (relativePath.startsWith('public/')) {
+    relativePath = relativePath.replace(/^public/, '');
+  }
   const publicUrl = `${baseUrl}${relativePath}`;
 
   console.error(`[Blotato Schedule] Converting filesystem path to public URL`);
@@ -149,17 +158,17 @@ export async function scheduleStory(
     // Parse and validate response
     const data: BlotatoResponse = await response.json();
 
-    if (!data.postId) {
-      const errorMsg = 'Schedule response missing required field: postId';
+    if (!data.postSubmissionId) {
+      const errorMsg = 'Schedule response missing required field: postSubmissionId';
       console.error(`[Blotato Schedule] ${errorMsg}`, data);
       throw new Error(errorMsg);
     }
 
     console.error(`[Blotato Schedule] Successfully scheduled post using public URL approach`);
-    console.error(`[Blotato Schedule] - Post ID: ${data.postId}`);
+    console.error(`[Blotato Schedule] - Post Submission ID: ${data.postSubmissionId}`);
     console.error(`[Blotato Schedule] - Media URL: ${publicUrl}`);
     console.error(`[Blotato Schedule] - Scheduled time: ${scheduledTime.toISOString()}`);
-    return data.postId;
+    return data.postSubmissionId;
   } catch (error) {
     clearTimeout(timeoutId);
 
