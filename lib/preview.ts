@@ -170,7 +170,7 @@ export async function generatePreview(
           // Update version metadata
           hist.assets[assetIndex].versions[versionIndex] = {
             ...hist.assets[assetIndex].versions[versionIndex],
-            preview_file_path: previewPath,
+            preview_file_path: getPreviewUrl(assetId, version),
             preview_generated_at: generatedAt,
             preview_generation_time_ms: processingTime,
             preview_generation_failed: false
