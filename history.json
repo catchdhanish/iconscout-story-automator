@@ -24,7 +24,9 @@
           "version": 3,
           "created_at": "2026-01-12T05:49:39.055Z",
           "prompt_used": "SYSTEM:\nYou are an expert background designer for Instagram Stories specializing in the IconScout brand aesthetic.\n\nBRAND STYLE:\n- Modern, clean, vibrant yet professional\n- Abstract, gradient-based, or organic shapes\n- Bold colors that complement (not compete with) the main asset\n- Geometric patterns, smooth gradients, subtle textures\n\nCRITICAL RULES:\n- Generate ONLY the background - DO NOT draw the asset, logo, or text\n- Respect Instagram Story safe zones: top 250px and bottom 180px should avoid critical visual elements\n- The center 70% of the canvas (756x1344 pixels out of 1080x1920) is reserved for the asset overlay\n- Design the background to enhance, not compete with, the asset that will be placed on top\n- Output resolution: 1080x1920 pixels (9:16 aspect ratio)\n\nVISUAL APPROACH:\n- Use abstract shapes and gradients rather than literal objects\n- Create depth with layered shapes or gradient transitions\n- Balance vibrant colors with clean, uncluttered composition\n- Ensure the center area has visual interest but remains suitable for overlay\n\nUSER:\nCreate an Instagram Story background with the following characteristics:\n\nASSET DESCRIPTION: Notification Melin Chain Coin 3D Asset\nMETA DESCRIPTION: Notification Melin Chain Coin 3D Asset\nSUGGESTED COLOR PALETTE (use as guidance, not strict requirement): #ecc915, #9a6c55, #a23b08, #ac9cec, #913507\n\nDesign a complementary background that enhances this asset while allowing it to remain the focal point.\n\nSTYLE REQUIREMENTS:\n- Abstract and gradient-based design\n- Vibrant colors that enhance without competing\n- Clean center area for asset overlay\n\nCONSTRAINTS:\n- 1080x1920 pixels (9:16 aspect ratio)\n- Keep center 70% relatively clean for asset overlay\n- Avoid critical elements in top 250px and bottom 180px",
-          "file_path": "/uploads/cbde0cb3-e3f6-4d70-a3da-bc63a81821c2/background_v3.png"
+          "file_path": "/uploads/cbde0cb3-e3f6-4d70-a3da-bc63a81821c2/background_v3.png",
+          "preview_generation_failed": true,
+          "preview_generated_at": "2026-01-14T07:39:15.800Z"
         }
       ],
       "active_version": 3,
@@ -42,7 +44,7 @@
       "date": "2026-01-31",
       "asset_url": "/uploads/95703931-cf62-4638-b784-d902a20696cb.png",
       "meta_description": "Woman sharing Blueprint sketch ideas",
-      "status": "Draft",
+      "status": "Ready",
       "created_at": "2026-01-13T03:00:19.986Z",
       "versions": [
         {
@@ -50,6 +52,14 @@
           "created_at": "2026-01-13T03:00:35.181Z",
           "prompt_used": "SYSTEM:\nYou are an expert background designer for Instagram Stories specializing in the IconScout brand aesthetic.\n\nBRAND STYLE:\n- Modern, clean, vibrant yet professional\n- Abstract, gradient-based, or organic shapes\n- Bold colors that complement (not compete with) the main asset\n- Geometric patterns, smooth gradients, subtle textures\n\nCRITICAL RULES:\n- Generate ONLY the background - DO NOT draw the asset, logo, or text\n- Respect Instagram Story safe zones: top 250px and bottom 180px should avoid critical visual elements\n- The center 70% of the canvas (756x1344 pixels out of 1080x1920) is reserved for the asset overlay\n- Design the background to enhance, not compete with, the asset that will be placed on top\n- Output resolution: 1080x1920 pixels (9:16 aspect ratio)\n\nVISUAL APPROACH:\n- Use abstract shapes and gradients rather than literal objects\n- Create depth with layered shapes or gradient transitions\n- Balance vibrant colors with clean, uncluttered composition\n- Ensure the center area has visual interest but remains suitable for overlay\n\nUSER:\nCreate an Instagram Story background with the following characteristics:\n\nASSET DESCRIPTION: Woman sharing Blueprint sketch ideas\nMETA DESCRIPTION: Woman sharing Blueprint sketch ideas\nSUGGESTED COLOR PALETTE (use as guidance, not strict requirement): #facf5b, #957949, #0d153c, #fcdc74, #303c4d\n\nDesign a complementary background that enhances this asset while allowing it to remain the focal point.\n\nSTYLE REQUIREMENTS:\n- Abstract and gradient-based design\n- Vibrant colors that enhance without competing\n- Clean center area for asset overlay\n\nCONSTRAINTS:\n- 1080x1920 pixels (9:16 aspect ratio)\n- Keep center 70% relatively clean for asset overlay\n- Avoid critical elements in top 250px and bottom 180px",
           "file_path": "/uploads/95703931-cf62-4638-b784-d902a20696cb/background_v1.png"
+        },
+        {
+          "version": 2,
+          "created_at": "2026-01-14T05:54:56.594Z",
+          "prompt_used": "SYSTEM:\nYou are an expert background designer for Instagram Stories specializing in the IconScout brand aesthetic.\n\nBRAND STYLE:\n- Modern, clean, vibrant yet professional\n- Abstract, gradient-based, or organic shapes\n- Bold colors that complement (not compete with) the main asset\n- Geometric patterns, smooth gradients, subtle textures\n\nCRITICAL RULES:\n- Generate ONLY the background - DO NOT draw the asset, logo, or text\n- Respect Instagram Story safe zones: top 250px and bottom 180px should avoid critical visual elements\n- The center 70% of the canvas (756x1344 pixels out of 1080x1920) is reserved for the asset overlay\n- Design the background to enhance, not compete with, the asset that will be placed on top\n- Output resolution: 1080x1920 pixels (9:16 aspect ratio)\n\nVISUAL APPROACH:\n- Use abstract shapes and gradients rather than literal objects\n- Create depth with layered shapes or gradient transitions\n- Balance vibrant colors with clean, uncluttered composition\n- Ensure the center area has visual interest but remains suitable for overlay\n\nUSER:\nCreate an Instagram Story background with the following characteristics:\n\nASSET DESCRIPTION: Woman sharing Blueprint sketch ideas\nMETA DESCRIPTION: Woman sharing Blueprint sketch ideas\nSUGGESTED COLOR PALETTE (use as guidance, not strict requirement): #facf5b, #957949, #0d153c, #fcdc74, #303c4d\n\nDesign a complementary background that enhances this asset while allowing it to remain the focal point.\n\nSTYLE REQUIREMENTS:\n- Abstract and gradient-based design\n- Vibrant colors that enhance without competing\n- Clean center area for asset overlay\n\nCONSTRAINTS:\n- 1080x1920 pixels (9:16 aspect ratio)\n- Keep center 70% relatively clean for asset overlay\n- Avoid critical elements in top 250px and bottom 180px",
+          "file_path": "/uploads/95703931-cf62-4638-b784-d902a20696cb/background_v2.png",
+          "preview_generation_failed": true,
+          "preview_generated_at": "2026-01-14T07:31:03.568Z"
         }
       ],
       "dominant_colors": [
@@ -59,8 +69,71 @@
         "#fcdc74",
         "#303c4d"
       ],
+      "active_version": 2,
+      "updated_at": "2026-01-14T05:56:19.979Z"
+    },
+    {
+      "id": "b18ef5f9-a98e-4208-8a46-8f8ee07513c2",
+      "date": "2026-01-22",
+      "asset_url": "/uploads/b18ef5f9-a98e-4208-8a46-8f8ee07513c2.png",
+      "meta_description": "Robot holding a task calendar",
+      "status": "Draft",
+      "created_at": "2026-01-14T08:55:28.778Z",
+      "versions": [
+        {
+          "version": 1,
+          "created_at": "2026-01-14T08:55:42.729Z",
+          "prompt_used": "SYSTEM:\nYou are an expert background designer for Instagram Stories specializing in the IconScout brand aesthetic.\n\nBRAND STYLE:\n- Modern, clean, vibrant yet professional\n- Abstract, gradient-based, or organic shapes\n- Bold colors that complement (not compete with) the main asset\n- Geometric patterns, smooth gradients, subtle textures\n\nCRITICAL RULES:\n- Generate ONLY the background - DO NOT draw the asset, logo, or text\n- Respect Instagram Story safe zones: top 250px and bottom 180px should avoid critical visual elements\n- The center 70% of the canvas (756x1344 pixels out of 1080x1920) is reserved for the asset overlay\n- Design the background to enhance, not compete with, the asset that will be placed on top\n- Output resolution: 1080x1920 pixels (9:16 aspect ratio)\n\nVISUAL APPROACH:\n- Use abstract shapes and gradients rather than literal objects\n- Create depth with layered shapes or gradient transitions\n- Balance vibrant colors with clean, uncluttered composition\n- Ensure the center area has visual interest but remains suitable for overlay\n\nUSER:\nCreate an Instagram Story background with the following characteristics:\n\nASSET DESCRIPTION: The image depicts a 3D illustration of a blue robot holding a calendar with checkmarks on some of the days. The visual style is cartoonish and playful, and the key elements are the robot, the calendar, and the checkmarks, which together create a sense of organization and accomplishment. The overall tone is friendly and positive.\nMETA DESCRIPTION: Robot holding a task calendar\nSUGGESTED COLOR PALETTE (use as guidance, not strict requirement): #cc8010, #6578ac, #0d2e83, #748bec, #3c4c64\n\nDesign a complementary background that enhances this asset while allowing it to remain the focal point.\n\nSTYLE REQUIREMENTS:\n- Abstract and gradient-based design\n- Vibrant colors that enhance without competing\n- Clean center area for asset overlay\n\nCONSTRAINTS:\n- 1080x1920 pixels (9:16 aspect ratio)\n- Keep center 70% relatively clean for asset overlay\n- Avoid critical elements in top 250px and bottom 180px",
+          "file_path": "/uploads/b18ef5f9-a98e-4208-8a46-8f8ee07513c2/background_v1.png",
+          "preview_generation_failed": true,
+          "preview_generated_at": "2026-01-14T08:55:42.737Z"
+        },
+        {
+          "version": 2,
+          "created_at": "2026-01-15T03:46:49.376Z",
+          "prompt_used": "SYSTEM:\nYou are an expert background designer for Instagram Stories specializing in the IconScout brand aesthetic.\n\nBRAND STYLE:\n- Modern, clean, vibrant yet professional\n- Abstract, gradient-based, or organic shapes\n- Bold colors that complement (not compete with) the main asset\n- Geometric patterns, smooth gradients, subtle textures\n\nCRITICAL RULES:\n- Generate ONLY the background - DO NOT draw the asset, logo, or text\n- Respect Instagram Story safe zones: top 250px and bottom 180px should avoid critical visual elements\n- The center 70% of the canvas (756x1344 pixels out of 1080x1920) is reserved for the asset overlay\n- Design the background to enhance, not compete with, the asset that will be placed on top\n- Output resolution: 1080x1920 pixels (9:16 aspect ratio)\n\nVISUAL APPROACH:\n- Use abstract shapes and gradients rather than literal objects\n- Create depth with layered shapes or gradient transitions\n- Balance vibrant colors with clean, uncluttered composition\n- Ensure the center area has visual interest but remains suitable for overlay\n\nUSER:\nCreate an Instagram Story background with the following characteristics:\n\nASSET DESCRIPTION: The image depicts a 3D illustration of a blue robot holding a calendar with checkmarks on some of the days. The visual style is cartoonish and playful, and the key elements are the robot, the calendar, and the checkmarks, which together create a sense of organization and accomplishment. The overall tone is friendly and positive.\nMETA DESCRIPTION: Robot holding a task calendar\nSUGGESTED COLOR PALETTE (use as guidance, not strict requirement): #cc8010, #6578ac, #0d2e83, #748bec, #3c4c64\n\nDesign a complementary background that enhances this asset while allowing it to remain the focal point.\n\nSTYLE REQUIREMENTS:\n- Abstract and gradient-based design\n- Vibrant colors that enhance without competing\n- Clean center area for asset overlay\n\nCONSTRAINTS:\n- 1080x1920 pixels (9:16 aspect ratio)\n- Keep center 70% relatively clean for asset overlay\n- Avoid critical elements in top 250px and bottom 180px",
+          "file_path": "/uploads/b18ef5f9-a98e-4208-8a46-8f8ee07513c2/background_v2.png",
+          "preview_generation_failed": true,
+          "preview_generated_at": "2026-01-15T03:46:49.423Z"
+        }
+      ],
+      "asset_vision_description": "The image depicts a 3D illustration of a blue robot holding a calendar with checkmarks on some of the days. The visual style is cartoonish and playful, and the key elements are the robot, the calendar, and the checkmarks, which together create a sense of organization and accomplishment. The overall tone is friendly and positive.",
+      "dominant_colors": [
+        "#cc8010",
+        "#6578ac",
+        "#0d2e83",
+        "#748bec",
+        "#3c4c64"
+      ],
+      "active_version": 2,
+      "updated_at": "2026-01-15T03:46:49.379Z"
+    },
+    {
+      "id": "a8369949-f804-4a81-a8b3-8ffdd55d23f4",
+      "date": "2026-01-25",
+      "asset_url": "/uploads/a8369949-f804-4a81-a8b3-8ffdd55d23f4.png",
+      "meta_description": "This vibrant, flat-vector illustration depicts a lively scene of mobile gaming and digital connection using a modern, geometric art style. The composition is divided into colorful blocks featuring a palette of neon yellow, magenta, cyan, and purple. In the top left, a character with dark curly hair lounges on a pink sofa, engrossed in a game on a horizontal smartphone, with digital UI elements like progress bars and an avatar floating above their head. Their oversized yellow trousers extend exaggeratedly across the center of the image, visually bridging the gap to the lower section. In the bottom right, a second character appears to emerge from a tablet frame, holding a pink phone next to a floating gold trophy that symbolizes victory. A stylized yellow game controller rests on a purple background in the bottom left corner, completing this energetic representation of e-sports and online community.",
+      "status": "Draft",
+      "created_at": "2026-01-15T03:51:15.441Z",
+      "versions": [
+        {
+          "version": 1,
+          "created_at": "2026-01-15T03:51:54.038Z",
+          "prompt_used": "SYSTEM:\nYou are an expert background designer for Instagram Stories specializing in the IconScout brand aesthetic.\n\nBRAND STYLE:\n- Modern, clean, vibrant yet professional\n- Abstract, gradient-based, or organic shapes\n- Bold colors that complement (not compete with) the main asset\n- Geometric patterns, smooth gradients, subtle textures\n\nCRITICAL RULES:\n- Generate ONLY the background - DO NOT draw the asset, logo, or text\n- Respect Instagram Story safe zones: top 250px and bottom 180px should avoid critical visual elements\n- The center 70% of the canvas (756x1344 pixels out of 1080x1920) is reserved for the asset overlay\n- Design the background to enhance, not compete with, the asset that will be placed on top\n- Output resolution: 1080x1920 pixels (9:16 aspect ratio)\n\nVISUAL APPROACH:\n- Use abstract shapes and gradients rather than literal objects\n- Create depth with layered shapes or gradient transitions\n- Balance vibrant colors with clean, uncluttered composition\n- Ensure the center area has visual interest but remains suitable for overlay\n\nUSER:\nCreate an Instagram Story background with the following characteristics:\n\nASSET DESCRIPTION: This vibrant, flat-vector illustration depicts a lively scene of mobile gaming and digital connection using a modern, geometric art style. The composition is divided into colorful blocks featuring a palette of neon yellow, magenta, cyan, and purple. In the top left, a character with dark curly hair lounges on a pink sofa, engrossed in a game on a horizontal smartphone, with digital UI elements like progress bars and an avatar floating above their head. Their oversized yellow trousers extend exaggeratedly across the center of the image, visually bridging the gap to the lower section. In the bottom right, a second character appears to emerge from a tablet frame, holding a pink phone next to a floating gold trophy that symbolizes victory. A stylized yellow game controller rests on a purple background in the bottom left corner, completing this energetic representation of e-sports and online community.\nMETA DESCRIPTION: This vibrant, flat-vector illustration depicts a lively scene of mobile gaming and digital connection using a modern, geometric art style. The composition is divided into colorful blocks featuring a palette of neon yellow, magenta, cyan, and purple. In the top left, a character with dark curly hair lounges on a pink sofa, engrossed in a game on a horizontal smartphone, with digital UI elements like progress bars and an avatar floating above their head. Their oversized yellow trousers extend exaggeratedly across the center of the image, visually bridging the gap to the lower section. In the bottom right, a second character appears to emerge from a tablet frame, holding a pink phone next to a floating gold trophy that symbolizes victory. A stylized yellow game controller rests on a purple background in the bottom left corner, completing this energetic representation of e-sports and online community.\nSUGGESTED COLOR PALETTE (use as guidance, not strict requirement): #fce404, #78387e, #046444, #8b45fa, #2e395a\n\nDesign a complementary background that enhances this asset while allowing it to remain the focal point.\n\nSTYLE REQUIREMENTS:\n- Abstract and gradient-based design\n- Vibrant colors that enhance without competing\n- Clean center area for asset overlay\n\nCONSTRAINTS:\n- 1080x1920 pixels (9:16 aspect ratio)\n- Keep center 70% relatively clean for asset overlay\n- Avoid critical elements in top 250px and bottom 180px",
+          "file_path": "/uploads/a8369949-f804-4a81-a8b3-8ffdd55d23f4/background_v1.png",
+          "preview_generation_failed": true,
+          "preview_generated_at": "2026-01-15T03:51:54.176Z"
+        }
+      ],
+      "dominant_colors": [
+        "#fce404",
+        "#78387e",
+        "#046444",
+        "#8b45fa",
+        "#2e395a"
+      ],
       "active_version": 1,
-      "updated_at": "2026-01-13T03:00:35.182Z"
+      "updated_at": "2026-01-15T03:51:54.039Z"
     }
   ]
 }

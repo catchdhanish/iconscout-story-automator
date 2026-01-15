@@ -35,10 +35,10 @@ function getShadowColor(shadowType: 'dark' | 'light'): string {
 
 export async function GET(
   request: NextRequest,
-  context: { params: { assetId: string } }
+  context: { params: Promise<{ assetId: string }> }
 ) {
   try {
-    const { assetId } = context.params;
+    const { assetId } = await context.params;
     const { searchParams } = new URL(request.url);
     const customContent = searchParams.get('content');
 

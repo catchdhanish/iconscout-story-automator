@@ -115,14 +115,21 @@ export async function generatePreview(
       }
 
       // Store paths for use outside callback
-      backgroundPath = versionData.file_path;
-      assetPath = path.join(process.cwd(), 'public', asset.asset_url);
+      // Convert web-relative paths to absolute filesystem paths
+      backgroundPath = versionData.file_path
+        ? path.join(process.cwd(), 'public', versionData.file_path.replace(/^\//, ''))
+        : undefined;
+      assetPath = path.join(process.cwd(), 'public', asset.asset_url.replace(/^\//, ''));
 
       // No changes - return history unchanged
       return hist;
     });
 
-    // Paths are guaranteed to be set if we reach here
+    // Validate paths are set
+    if (!backgroundPath) {
+      return await markAsFailed('Background file path not found in version data');
+    }
+
     const previewPath = getPreviewPath(assetId, version);
 
     // 2. Ensure preview directory exists

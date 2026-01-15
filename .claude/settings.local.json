@@ -20,7 +20,8 @@
       "Bash(wc:*)",
       "Skill(frontend-design)",
       "Bash(npm run dev)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Skill(writing-plans)"
     ]
   }
 }
