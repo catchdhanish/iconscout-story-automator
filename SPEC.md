@@ -25,9 +25,10 @@
 - **Color Extraction:** `node-vibrant` (Vibrant.js) for dominant color extraction
 
 ### External APIs
-- **Scheduling API:** Blotato API ([Reference](https://help.blotato.com/api/start))
-  - Authentication: Bearer token (standard REST API assumptions)
+- **Scheduling API:** Blotato API v2 ([Reference](https://help.blotato.com/api/start))
+  - Authentication: API key via `blotato-api-key` header
   - Base URL: Configurable via environment variable
+  - Two-step process: Upload media → Schedule post
 
 ### Storage & State Management
 - **Primary Storage:** Local filesystem (`/public/uploads/` for images)
@@ -633,16 +634,39 @@ Design a complementary background that enhances this asset while allowing it to 
      - Warning if duplicate date detected: "Another story already scheduled for this date. Continue?"
      - Actions: "Confirm Schedule" or "Cancel"
 
-3. **API Call to Blotato:**
+3. **API Call to Blotato (Two-Step Process):**
+
+   **Step 1: Upload Image**
+   ```javascript
+   POST /v2/media/upload
+   Headers:
+     blotato-api-key: {BLOTATO_API_KEY}
+   Body (FormData):
+     file: <image buffer>
+   Response:
+     {
+       "mediaUrl": "https://media.blotato.com/...",
+       "mediaId": "media_abc123"
+     }
+   ```
+
+   **Step 2: Schedule Post**
    ```javascript
    POST /v2/posts
    Headers:
-     Authorization: Bearer {BLOTATO_API_KEY}
+     blotato-api-key: {BLOTATO_API_KEY}
      Content-Type: application/json
    Body:
      {
-       "mediaType": "story",
-       "mediaUrl": "https://yourdomain.com/uploads/{assetId}/v{n}.png",
+       "accountId": "28049",
+       "content": {
+         "text": "",
+         "platform": "instagram"
+       },
+       "target": {
+         "targetType": "story"
+       },
+       "mediaUrls": ["https://media.blotato.com/..."],
        "scheduledTime": "2024-01-15T03:30:00Z"
      }
    ```
@@ -793,7 +817,7 @@ Design a complementary background that enhances this asset while allowing it to 
 ```javascript
 DELETE /v2/posts/{postId}
 Headers:
-  Authorization: Bearer {BLOTATO_API_KEY}
+  blotato-api-key: {BLOTATO_API_KEY}
 ```
 
 **Response Handling:**
@@ -818,7 +842,7 @@ Headers:
    ```javascript
    GET /v2/posts/{postId}
    Headers:
-     Authorization: Bearer {BLOTATO_API_KEY}
+     blotato-api-key: {BLOTATO_API_KEY}
    ```
 
 2. Check response `status` field:
@@ -1530,12 +1554,18 @@ pm2 startup
 
 ### 15.2 Blotato API Reference
 - **Documentation:** https://help.blotato.com/api/start
-- **Authentication:** Bearer token in `Authorization` header
+- **Authentication:** API key via `blotato-api-key` header (not Bearer token)
 - **Key Endpoints:**
-  - `POST /v2/posts` - Schedule new post
+  - `POST /v2/media/upload` - Upload image to get media URL (FormData)
+  - `POST /v2/posts` - Schedule new post (JSON payload with mediaUrls)
   - `GET /v2/posts/{postId}` - Get post status
   - `DELETE /v2/posts/{postId}` - Cancel scheduled post
-- **Response Format:** JSON with `postId`, `status`, `scheduledTime`, etc.
+- **Two-Step Scheduling Process:**
+  1. Upload image via `/v2/media/upload` with FormData (file field)
+  2. Schedule post via `/v2/posts` with JSON payload containing mediaUrls array
+- **Response Format:**
+  - Upload: JSON with `mediaUrl`, `mediaId`
+  - Schedule: JSON with `postId`, `status`, `scheduledTime`
 
 ### 15.3 Instagram Story Specifications
 - **Aspect Ratio:** 9:16 (portrait)
