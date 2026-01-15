@@ -1,22 +1,12 @@
 /**
  * Blotato API Client for Instagram Story Scheduling
  *
- * Provides functionality to schedule Instagram stories via Blotato v2 API
- * using a two-step process:
- * 1. Upload image to /v2/media/upload to get media URL
- * 2. Schedule post to /v2/posts with JSON payload
+ * Provides functionality to schedule Instagram stories via Blotato v2 API.
+ * Blotato accepts publicly accessible URLs - no separate upload endpoint is needed.
  */
 
 import * as fs from 'fs/promises';
 import { config } from './config';
-
-/**
- * Response from Blotato /v2/media/upload endpoint
- */
-interface MediaUploadResponse {
-  mediaUrl: string;
-  mediaId: string;
-}
 
 /**
  * Response from Blotato /v2/posts endpoint
@@ -28,108 +18,17 @@ interface BlotatoResponse {
 }
 
 /**
- * Upload an image to Blotato and get a media URL
- *
- * @param imageBuffer - Buffer containing the image data
- * @param fileName - Name of the image file
- * @returns Promise resolving to the media URL
- * @throws Error if API key is missing
- * @throws Error on network failures or timeout
- * @throws Error on non-200 responses
- * @throws Error if response format is invalid
- */
-async function uploadImageToBlotato(imageBuffer: Buffer, fileName: string): Promise<string> {
-  // Validate API configuration
-  if (!config.blotato.apiKey) {
-    throw new Error('BLOTATO_API_KEY is not configured');
-  }
-
-  // Create FormData with image file
-  const formData = new FormData();
-  const blob = new Blob([new Uint8Array(imageBuffer)], { type: 'image/png' });
-  formData.append('file', blob, fileName);
-
-  // Set up timeout controller
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), config.blotato.timeout);
-
-  try {
-    const uploadEndpoint = `${config.blotato.baseUrl}/v2/media/upload`;
-    console.error(`[Blotato Upload] Uploading image to ${uploadEndpoint}`);
-
-    // Make API request to upload media
-    const response = await fetch(uploadEndpoint, {
-      method: 'POST',
-      headers: {
-        'blotato-api-key': config.blotato.apiKey,
-      },
-      body: formData,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    // Handle non-200 responses
-    if (!response.ok) {
-      let errorMessage: string;
-      let errorDetails: any;
-
-      try {
-        const errorBody = await response.text();
-        try {
-          errorDetails = JSON.parse(errorBody);
-          errorMessage = errorDetails.message || errorBody;
-        } catch {
-          errorMessage = errorBody || response.statusText;
-        }
-      } catch {
-        errorMessage = response.statusText;
-      }
-
-      const errorMsg = `Media upload failed with HTTP ${response.status}: ${errorMessage}`;
-      console.error(`[Blotato Upload] ${errorMsg}`, { endpoint: uploadEndpoint, status: response.status, details: errorDetails });
-      throw new Error(errorMsg);
-    }
-
-    // Parse and validate response
-    const data: MediaUploadResponse = await response.json();
-
-    if (!data.mediaUrl) {
-      const errorMsg = 'Media upload response missing required field: mediaUrl';
-      console.error(`[Blotato Upload] ${errorMsg}`, data);
-      throw new Error(errorMsg);
-    }
-
-    console.error(`[Blotato Upload] Successfully uploaded image, mediaUrl: ${data.mediaUrl}`);
-    return data.mediaUrl;
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    // Handle timeout
-    if (error instanceof Error && error.name === 'AbortError') {
-      const errorMsg = `Media upload timeout after ${config.blotato.timeout / 1000} seconds`;
-      console.error(`[Blotato Upload] ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-
-    // Re-throw other errors
-    throw error;
-  }
-}
-
-/**
  * Schedule an Instagram story via Blotato v2 API
  *
- * This function performs a two-step process:
- * 1. Uploads the image to Blotato to get a media URL
- * 2. Schedules the post with the media URL
+ * This function:
+ * 1. Converts filesystem path to public URL
+ * 2. Sends URL to Blotato (no upload step - Blotato fetches from public URL)
  *
- * @param imagePath - Absolute path to the image file
+ * @param imagePath - Absolute or relative path to the image file
  * @param scheduledTime - When to publish the story (Date object)
  * @returns Promise resolving to the Blotato post ID
  * @throws Error if API key or account ID is missing
  * @throws Error if image file doesn't exist
- * @throws Error on media upload failures
  * @throws Error on network failures or timeout
  * @throws Error on non-200 responses from scheduling endpoint
  * @throws Error if response format is invalid
@@ -156,36 +55,46 @@ export async function scheduleStory(
     throw new Error('BLOTATO_ACCOUNT_ID is not configured');
   }
 
-  // Read image file as buffer (will throw if file doesn't exist)
-  let imageBuffer: Buffer;
+  // Verify image file exists
   try {
-    imageBuffer = await fs.readFile(imagePath);
+    await fs.access(imagePath);
   } catch (error) {
     const errorMessage = `Image file not found: ${imagePath}`;
     console.error(`[Blotato Schedule] ${errorMessage}`, error);
     throw new Error(errorMessage);
   }
 
-  // Step 1: Upload image to get media URL
-  console.error(`[Blotato Schedule] Step 1: Uploading image from ${imagePath}`);
-  const fileName = imagePath.split('/').pop() || 'image.png';
-  const mediaUrl = await uploadImageToBlotato(imageBuffer, fileName);
+  // Convert filesystem path to public URL
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const relativePath = imagePath
+    .replace(/^\.\/public/, '')
+    .replace(/^public/, '');
+  const publicUrl = `${baseUrl}${relativePath}`;
 
-  // Step 2: Schedule post with media URL
-  console.error(`[Blotato Schedule] Step 2: Scheduling post with mediaUrl: ${mediaUrl}`);
+  console.error(`[Blotato Schedule] Converting filesystem path to public URL`);
+  console.error(`[Blotato Schedule] - Filesystem path: ${imagePath}`);
+  console.error(`[Blotato Schedule] - Public URL: ${publicUrl}`);
 
-  // Build post data payload
-  const postData = {
-    accountId: config.blotato.accountId,
-    content: {
-      text: '',
-      platform: 'instagram' as const,
+  // Warn if using localhost (Blotato cannot access localhost from the internet)
+  if (publicUrl.includes('localhost') || publicUrl.includes('127.0.0.1')) {
+    console.warn('[Blotato] WARNING: Using localhost URL - Blotato cannot access this from the internet!');
+    console.warn('[Blotato] Use ngrok (https://ngrok.com) or deploy to production for actual scheduling.');
+  }
+
+  // Build request payload with "post" wrapper (REQUIRED by Blotato API)
+  const requestBody = {
+    post: {
+      accountId: config.blotato.accountId,
+      content: {
+        text: '',
+        mediaUrls: [publicUrl],
+        platform: 'instagram' as const,
+      },
+      target: {
+        targetType: 'instagram' as const,
+      },
+      scheduledTime: scheduledTime.toISOString(), // UTC ISO 8601
     },
-    target: {
-      targetType: 'story' as const,
-    },
-    mediaUrls: [mediaUrl],
-    scheduledTime: scheduledTime.toISOString(), // UTC ISO 8601
   };
 
   // Set up timeout controller
@@ -194,7 +103,8 @@ export async function scheduleStory(
 
   try {
     const scheduleEndpoint = `${config.blotato.baseUrl}/v2/posts`;
-    console.error(`[Blotato Schedule] Scheduling post to ${scheduleEndpoint}`, { postData });
+    console.error(`[Blotato Schedule] Scheduling post to ${scheduleEndpoint}`);
+    console.error(`[Blotato Schedule] Request body:`, JSON.stringify(requestBody, null, 2));
 
     // Make API request to schedule post
     const response = await fetch(scheduleEndpoint, {
@@ -203,7 +113,7 @@ export async function scheduleStory(
         'blotato-api-key': config.blotato.apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(postData),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -227,7 +137,12 @@ export async function scheduleStory(
       }
 
       const errorMsg = `Schedule post failed with HTTP ${response.status}: ${errorMessage}`;
-      console.error(`[Blotato Schedule] ${errorMsg}`, { endpoint: scheduleEndpoint, status: response.status, details: errorDetails });
+      console.error(`[Blotato Schedule] ${errorMsg}`, {
+        endpoint: scheduleEndpoint,
+        status: response.status,
+        details: errorDetails,
+        publicUrl,
+      });
       throw new Error(errorMsg);
     }
 
@@ -240,7 +155,10 @@ export async function scheduleStory(
       throw new Error(errorMsg);
     }
 
-    console.error(`[Blotato Schedule] Successfully scheduled post, postId: ${data.postId}`);
+    console.error(`[Blotato Schedule] Successfully scheduled post using public URL approach`);
+    console.error(`[Blotato Schedule] - Post ID: ${data.postId}`);
+    console.error(`[Blotato Schedule] - Media URL: ${publicUrl}`);
+    console.error(`[Blotato Schedule] - Scheduled time: ${scheduledTime.toISOString()}`);
     return data.postId;
   } catch (error) {
     clearTimeout(timeoutId);
