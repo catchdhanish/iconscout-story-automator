@@ -47,17 +47,24 @@ describe('scheduleStory', () => {
   });
 
   it('should successfully schedule a story', async () => {
-    // Mock successful API response
+    // Mock Step 1: Media upload response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
-        success: true,
-        data: {
-          post_id: 'blotato_post_12345',
-          scheduled_time: '2026-01-15T10:00:00Z',
-          status: 'scheduled',
-        },
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock Step 2: Schedule post response
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        postId: 'blotato_post_12345',
+        status: 'scheduled',
+        scheduledTime: '2026-01-15T10:00:00.000Z',
       }),
     });
 
@@ -65,18 +72,32 @@ describe('scheduleStory', () => {
 
     expect(postId).toBe('blotato_post_12345');
 
-    // Verify API call
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(url).toBe('https://api.blotato.com/v1/instagram/stories/schedule');
-    expect(options.method).toBe('POST');
-    expect(options.headers['Authorization']).toBe('Bearer test-api-key');
+    // Verify TWO API calls were made
+    expect(global.fetch).toHaveBeenCalledTimes(2);
 
-    // Verify FormData contents
-    const formData = options.body as FormData;
-    expect(formData.get('account_id')).toBe('test-account-id');
-    expect(formData.get('scheduled_time')).toBe('2026-01-15T10:00:00.000Z');
-    expect(formData.get('image')).toBeInstanceOf(Blob);
+    // Verify Step 1: Media upload call
+    const [uploadUrl, uploadOptions] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(uploadUrl).toBe('https://api.blotato.com/v2/media/upload');
+    expect(uploadOptions.method).toBe('POST');
+    expect(uploadOptions.headers['blotato-api-key']).toBe('test-api-key');
+    expect(uploadOptions.body).toBeInstanceOf(FormData);
+    const uploadFormData = uploadOptions.body as FormData;
+    expect(uploadFormData.get('file')).toBeInstanceOf(Blob);
+
+    // Verify Step 2: Schedule post call
+    const [scheduleUrl, scheduleOptions] = (global.fetch as jest.Mock).mock.calls[1];
+    expect(scheduleUrl).toBe('https://api.blotato.com/v2/posts');
+    expect(scheduleOptions.method).toBe('POST');
+    expect(scheduleOptions.headers['blotato-api-key']).toBe('test-api-key');
+    expect(scheduleOptions.headers['Content-Type']).toBe('application/json');
+
+    // Verify JSON body contents
+    const bodyData = JSON.parse(scheduleOptions.body);
+    expect(bodyData.accountId).toBe('test-account-id');
+    expect(bodyData.scheduledTime).toBe('2026-01-15T10:00:00.000Z');
+    expect(bodyData.mediaUrls).toEqual(['https://media.blotato.com/test.png']);
+    expect(bodyData.content.platform).toBe('instagram');
+    expect(bodyData.target.targetType).toBe('story');
   });
 
   it('should throw error when API key is missing', async () => {
@@ -131,16 +152,41 @@ describe('scheduleStory', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('should throw error on network failure', async () => {
+  it('should throw error on network failure during upload', async () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
     ).rejects.toThrow('Network error');
+
+    // Should only call upload, not schedule
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw error on timeout', async () => {
-    // Mock abort error for timeout
+  it('should throw error on network failure during scheduling', async () => {
+    // Mock successful upload
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock network failure on schedule
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+
+    await expect(
+      scheduleStory(mockImagePath, mockScheduledTime)
+    ).rejects.toThrow('Network error');
+
+    // Both calls should have been attempted
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw error on timeout during upload', async () => {
+    // Mock abort error for timeout during upload
     (global.fetch as jest.Mock).mockImplementationOnce(() => {
       return new Promise((_, reject) => {
         setTimeout(() => {
@@ -153,10 +199,43 @@ describe('scheduleStory', () => {
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('Request timeout after 15 seconds');
+    ).rejects.toThrow('Media upload timeout after 15 seconds');
+
+    // Should only call upload
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw error on 401 unauthorized response', async () => {
+  it('should throw error on timeout during scheduling', async () => {
+    // Mock successful upload
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock abort error for timeout during scheduling
+    (global.fetch as jest.Mock).mockImplementationOnce(() => {
+      return new Promise((_, reject) => {
+        setTimeout(() => {
+          const error = new Error('The operation was aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, 100);
+      });
+    });
+
+    await expect(
+      scheduleStory(mockImagePath, mockScheduledTime)
+    ).rejects.toThrow('Schedule post timeout after 15 seconds');
+
+    // Both calls should have been attempted
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw error on 401 unauthorized response during upload', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 401,
@@ -166,10 +245,40 @@ describe('scheduleStory', () => {
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('HTTP 401: Invalid API key');
+    ).rejects.toThrow('Media upload failed with HTTP 401: Invalid API key');
+
+    // Should only call upload
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw error on 500 server error', async () => {
+  it('should throw error on 401 unauthorized response during scheduling', async () => {
+    // Mock successful upload
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock 401 on schedule
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: async () => 'Invalid API key',
+    });
+
+    await expect(
+      scheduleStory(mockImagePath, mockScheduledTime)
+    ).rejects.toThrow('Schedule post failed with HTTP 401: Invalid API key');
+
+    // Both calls should have been attempted
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw error on 500 server error during upload', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -179,71 +288,108 @@ describe('scheduleStory', () => {
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('HTTP 500: Server error occurred');
+    ).rejects.toThrow('Media upload failed with HTTP 500: Server error occurred');
+
+    // Should only call upload
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw error when response has success: false', async () => {
+  it('should throw error on 500 server error during scheduling', async () => {
+    // Mock successful upload
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
-        success: false,
-        error: 'Scheduling failed',
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock 500 on schedule
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      text: async () => 'Server error occurred',
+    });
+
+    await expect(
+      scheduleStory(mockImagePath, mockScheduledTime)
+    ).rejects.toThrow('Schedule post failed with HTTP 500: Server error occurred');
+
+    // Both calls should have been attempted
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw error when upload response is missing mediaUrl', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaId: 'media_123',
+        // missing mediaUrl
       }),
     });
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('API returned success: false');
+    ).rejects.toThrow('Media upload response missing required field: mediaUrl');
+
+    // Should only call upload
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw error when response is missing post_id', async () => {
+  it('should throw error when schedule response is missing postId', async () => {
+    // Mock successful upload
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
-        success: true,
-        data: {
-          scheduled_time: '2026-01-15T10:00:00Z',
-          status: 'scheduled',
-          // missing post_id
-        },
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock schedule response missing postId
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: 'scheduled',
+        scheduledTime: '2026-01-15T10:00:00.000Z',
+        // missing postId
       }),
     });
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('Response missing required field: data.post_id');
-  });
+    ).rejects.toThrow('Schedule response missing required field: postId');
 
-  it('should throw error when response is missing data object', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        success: true,
-        // missing data object
-      }),
-    });
-
-    await expect(
-      scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('Response missing required field: data.post_id');
+    // Both calls should have been attempted
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('should handle different image file types', async () => {
     const jpgPath = '/path/to/image.jpg';
 
+    // Mock Step 1: Media upload response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
-        success: true,
-        data: {
-          post_id: 'blotato_post_67890',
-          scheduled_time: '2026-01-15T10:00:00Z',
-          status: 'scheduled',
-        },
+        mediaUrl: 'https://media.blotato.com/test.jpg',
+        mediaId: 'media_456',
+      }),
+    });
+
+    // Mock Step 2: Schedule post response
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        postId: 'blotato_post_67890',
+        status: 'scheduled',
+        scheduledTime: '2026-01-15T10:00:00.000Z',
       }),
     });
 
@@ -251,10 +397,13 @@ describe('scheduleStory', () => {
 
     expect(postId).toBe('blotato_post_67890');
 
-    // Verify file name in FormData
-    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
-    const formData = options.body as FormData;
-    const imageFile = formData.get('image') as File;
+    // Verify TWO API calls were made
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    // Verify file name in upload FormData
+    const [, uploadOptions] = (global.fetch as jest.Mock).mock.calls[0];
+    const formData = uploadOptions.body as FormData;
+    const imageFile = formData.get('file') as File;
     expect(imageFile.name).toBe('image.jpg');
   });
 
@@ -267,23 +416,38 @@ describe('scheduleStory', () => {
       configurable: true,
     });
 
+    // Mock Step 1: Media upload response
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
-        success: true,
-        data: {
-          post_id: 'blotato_post_12345',
-          scheduled_time: '2026-01-15T10:00:00Z',
-          status: 'scheduled',
-        },
+        mediaUrl: 'https://media.custom.com/test.png',
+        mediaId: 'media_789',
+      }),
+    });
+
+    // Mock Step 2: Schedule post response
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        postId: 'blotato_post_12345',
+        status: 'scheduled',
+        scheduledTime: '2026-01-15T10:00:00.000Z',
       }),
     });
 
     await scheduleStory(mockImagePath, mockScheduledTime);
 
-    const [url] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(url).toBe('https://custom.api.com/v1/instagram/stories/schedule');
+    // Verify TWO API calls were made
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    // Verify custom base URL used for both endpoints
+    const [uploadUrl] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(uploadUrl).toBe('https://custom.api.com/v2/media/upload');
+
+    const [scheduleUrl] = (global.fetch as jest.Mock).mock.calls[1];
+    expect(scheduleUrl).toBe('https://custom.api.com/v2/posts');
 
     // Restore baseUrl
     Object.defineProperty(config.blotato, 'baseUrl', {
@@ -293,7 +457,7 @@ describe('scheduleStory', () => {
     });
   });
 
-  it('should handle error when response text fails', async () => {
+  it('should handle error when response text fails during upload', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 503,
@@ -305,6 +469,38 @@ describe('scheduleStory', () => {
 
     await expect(
       scheduleStory(mockImagePath, mockScheduledTime)
-    ).rejects.toThrow('HTTP 503: Service Unavailable');
+    ).rejects.toThrow('Media upload failed with HTTP 503: Service Unavailable');
+
+    // Should only call upload
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should handle error when response text fails during scheduling', async () => {
+    // Mock successful upload
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaUrl: 'https://media.blotato.com/test.png',
+        mediaId: 'media_123',
+      }),
+    });
+
+    // Mock schedule error
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      text: async () => {
+        throw new Error('Failed to read response');
+      },
+    });
+
+    await expect(
+      scheduleStory(mockImagePath, mockScheduledTime)
+    ).rejects.toThrow('Schedule post failed with HTTP 503: Service Unavailable');
+
+    // Both calls should have been attempted
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });
