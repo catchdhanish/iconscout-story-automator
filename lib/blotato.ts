@@ -98,6 +98,7 @@ export async function scheduleStory(
         text: '',
         mediaUrls: [publicUrl],
         platform: 'instagram' as const,
+        mediaType: 'story' as const,
       },
       target: {
         targetType: 'instagram' as const,
