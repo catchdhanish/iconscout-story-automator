@@ -378,14 +378,30 @@ export default function EditAssetModal({
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-fg-tertiary mb-1">Scheduled Date</h3>
+              <h3 className="text-sm font-medium text-fg-tertiary mb-1">
+                {(asset.status === 'Scheduled' || asset.status === 'Published') && asset.scheduled_time
+                  ? 'Scheduled Time'
+                  : 'Freebie Date'}
+              </h3>
               <p className="text-base text-fg-primary">
-                {new Date(asset.date).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {(asset.status === 'Scheduled' || asset.status === 'Published') && asset.scheduled_time ? (
+                  new Date(asset.scheduled_time).toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                ) : (
+                  new Date(asset.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                )}
               </p>
             </div>
 
