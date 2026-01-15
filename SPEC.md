@@ -25,10 +25,12 @@
 - **Color Extraction:** `node-vibrant` (Vibrant.js) for dominant color extraction
 
 ### External APIs
-- **Scheduling API:** Blotato API v2 ([Reference](https://help.blotato.com/api/start))
+- **Blotato API**: Instagram story scheduling service
+  - Base URL: `https://backend.blotato.com`
   - Authentication: API key via `blotato-api-key` header
-  - Base URL: Configurable via environment variable
-  - Two-step process: Upload media → Schedule post
+  - Endpoint: `POST /v2/posts` for scheduling posts
+  - Expects publicly accessible media URLs (not file uploads)
+  - Rate limit: 30 requests per minute
 
 ### Storage & State Management
 - **Primary Storage:** Local filesystem (`/public/uploads/` for images)
@@ -634,42 +636,44 @@ Design a complementary background that enhances this asset while allowing it to 
      - Warning if duplicate date detected: "Another story already scheduled for this date. Continue?"
      - Actions: "Confirm Schedule" or "Cancel"
 
-3. **API Call to Blotato (Two-Step Process):**
+3. **API Endpoint:** `POST https://backend.blotato.com/v2/posts`
 
-   **Step 1: Upload Image**
-   ```javascript
-   POST /v2/media/upload
-   Headers:
-     blotato-api-key: {BLOTATO_API_KEY}
-   Body (FormData):
-     file: <image buffer>
-   Response:
-     {
-       "mediaUrl": "https://media.blotato.com/...",
-       "mediaId": "media_abc123"
-     }
-   ```
+**Authentication:** `blotato-api-key` header
 
-   **Step 2: Schedule Post**
-   ```javascript
-   POST /v2/posts
-   Headers:
-     blotato-api-key: {BLOTATO_API_KEY}
-     Content-Type: application/json
-   Body:
-     {
-       "accountId": "28049",
-       "content": {
-         "text": "",
-         "platform": "instagram"
-       },
-       "target": {
-         "targetType": "story"
-       },
-       "mediaUrls": ["https://media.blotato.com/..."],
-       "scheduledTime": "2024-01-15T03:30:00Z"
-     }
-   ```
+**Request Format:**
+```json
+{
+  "post": {
+    "accountId": "28049",
+    "content": {
+      "text": "",
+      "mediaUrls": ["https://your-app.com/uploads/assetId/v1.png"],
+      "platform": "instagram"
+    },
+    "target": {
+      "targetType": "instagram"
+    },
+    "scheduledTime": "2026-01-15T10:00:00.000Z"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "postId": "post_abc123",
+  "status": "scheduled",
+  "scheduledTime": "2026-01-15T10:00:00.000Z"
+}
+```
+
+**Important Notes:**
+- Blotato expects **publicly accessible URLs** for media (not file uploads)
+- Images must be accessible from the internet for Blotato to fetch them
+- The request body MUST be wrapped in a `"post"` object
+- No separate media upload step exists
+- For local development, use ngrok to create public tunnel
+- For production, deploy to public URL (Vercel, Netlify, etc.)
 
 4. **Response Handling:**
 
@@ -815,9 +819,9 @@ Design a complementary background that enhances this asset while allowing it to 
 
 **API Call:**
 ```javascript
-DELETE /v2/posts/{postId}
+DELETE https://backend.blotato.com/v2/posts/{postId}
 Headers:
-  blotato-api-key: {BLOTATO_API_KEY}
+  blotato-api-key: <API_KEY>
 ```
 
 **Response Handling:**
@@ -840,9 +844,9 @@ Headers:
 **Process:**
 1. Query Blotato API for each scheduled post:
    ```javascript
-   GET /v2/posts/{postId}
+   GET https://backend.blotato.com/v2/posts/{postId}
    Headers:
-     blotato-api-key: {BLOTATO_API_KEY}
+     blotato-api-key: <API_KEY>
    ```
 
 2. Check response `status` field:
@@ -1553,19 +1557,51 @@ pm2 startup
 - **Output:** Base64 images or URLs
 
 ### 15.2 Blotato API Reference
-- **Documentation:** https://help.blotato.com/api/start
-- **Authentication:** API key via `blotato-api-key` header (not Bearer token)
-- **Key Endpoints:**
-  - `POST /v2/media/upload` - Upload image to get media URL (FormData)
-  - `POST /v2/posts` - Schedule new post (JSON payload with mediaUrls)
-  - `GET /v2/posts/{postId}` - Get post status
-  - `DELETE /v2/posts/{postId}` - Cancel scheduled post
-- **Two-Step Scheduling Process:**
-  1. Upload image via `/v2/media/upload` with FormData (file field)
-  2. Schedule post via `/v2/posts` with JSON payload containing mediaUrls array
-- **Response Format:**
-  - Upload: JSON with `mediaUrl`, `mediaId`
-  - Schedule: JSON with `postId`, `status`, `scheduledTime`
+
+**Base URL:** `https://backend.blotato.com`
+
+**Authentication:** `blotato-api-key` header
+
+**Endpoint: POST /v2/posts**
+
+Schedule an Instagram story for publication.
+
+**Request:**
+```json
+{
+  "post": {
+    "accountId": "string",
+    "content": {
+      "text": "string",
+      "mediaUrls": ["string"],
+      "platform": "instagram"
+    },
+    "target": {
+      "targetType": "instagram"
+    },
+    "scheduledTime": "string (ISO 8601)"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "postId": "string",
+  "status": "string",
+  "scheduledTime": "string (ISO 8601)"
+}
+```
+
+**Key Requirements:**
+- Media URLs must be publicly accessible from the internet
+- Request body must be wrapped in `"post"` object
+- `scheduledTime` must be ISO 8601 UTC timestamp
+- `platform` and `targetType` should both be "instagram" for Instagram stories
+
+**Rate Limits:** 30 requests per minute (per account)
+
+**Official Documentation:** https://help.blotato.com/api/api-reference/publish-post
 
 ### 15.3 Instagram Story Specifications
 - **Aspect Ratio:** 9:16 (portrait)
