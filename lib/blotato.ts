@@ -30,35 +30,24 @@ interface BlotatoResponse {
 /**
  * Upload an image to Blotato and get a media URL
  *
- * @param imagePath - Absolute path to the image file
+ * @param imageBuffer - Buffer containing the image data
+ * @param fileName - Name of the image file
  * @returns Promise resolving to the media URL
  * @throws Error if API key is missing
- * @throws Error if image file doesn't exist
  * @throws Error on network failures or timeout
  * @throws Error on non-200 responses
  * @throws Error if response format is invalid
  */
-async function uploadImageToBlotato(imagePath: string): Promise<string> {
+async function uploadImageToBlotato(imageBuffer: Buffer, fileName: string): Promise<string> {
   // Validate API configuration
   if (!config.blotato.apiKey) {
     throw new Error('BLOTATO_API_KEY is not configured');
   }
 
-  // Read image file as buffer (will throw if file doesn't exist)
-  let imageBuffer: Buffer;
-  try {
-    imageBuffer = await fs.readFile(imagePath);
-  } catch (error) {
-    const errorMessage = `Image file not found: ${imagePath}`;
-    console.error(`[Blotato Upload] ${errorMessage}`, error);
-    throw new Error(errorMessage);
-  }
-
   // Create FormData with image file
   const formData = new FormData();
   const blob = new Blob([new Uint8Array(imageBuffer)], { type: 'image/png' });
-  const fileName = imagePath.split('/').pop() || 'image.png';
-  formData.append('media', blob, fileName);
+  formData.append('file', blob, fileName);
 
   // Set up timeout controller
   const controller = new AbortController();
@@ -137,7 +126,6 @@ async function uploadImageToBlotato(imagePath: string): Promise<string> {
  *
  * @param imagePath - Absolute path to the image file
  * @param scheduledTime - When to publish the story (Date object)
- * @param text - Optional text caption for the story (defaults to 'Freebie of the Day')
  * @returns Promise resolving to the Blotato post ID
  * @throws Error if API key or account ID is missing
  * @throws Error if image file doesn't exist
@@ -150,16 +138,14 @@ async function uploadImageToBlotato(imagePath: string): Promise<string> {
  * ```typescript
  * const postId = await scheduleStory(
  *   './public/uploads/story.png',
- *   new Date('2026-01-15T10:00:00Z'),
- *   'Check out this amazing freebie!'
+ *   new Date('2026-01-15T10:00:00Z')
  * );
  * console.log(`Scheduled story with post ID: ${postId}`);
  * ```
  */
 export async function scheduleStory(
   imagePath: string,
-  scheduledTime: Date,
-  text: string = 'Freebie of the Day'
+  scheduledTime: Date
 ): Promise<string> {
   // Validate API configuration
   if (!config.blotato.apiKey) {
@@ -170,9 +156,20 @@ export async function scheduleStory(
     throw new Error('BLOTATO_ACCOUNT_ID is not configured');
   }
 
+  // Read image file as buffer (will throw if file doesn't exist)
+  let imageBuffer: Buffer;
+  try {
+    imageBuffer = await fs.readFile(imagePath);
+  } catch (error) {
+    const errorMessage = `Image file not found: ${imagePath}`;
+    console.error(`[Blotato Schedule] ${errorMessage}`, error);
+    throw new Error(errorMessage);
+  }
+
   // Step 1: Upload image to get media URL
   console.error(`[Blotato Schedule] Step 1: Uploading image from ${imagePath}`);
-  const mediaUrl = await uploadImageToBlotato(imagePath);
+  const fileName = imagePath.split('/').pop() || 'image.png';
+  const mediaUrl = await uploadImageToBlotato(imageBuffer, fileName);
 
   // Step 2: Schedule post with media URL
   console.error(`[Blotato Schedule] Step 2: Scheduling post with mediaUrl: ${mediaUrl}`);
@@ -181,7 +178,7 @@ export async function scheduleStory(
   const postData = {
     accountId: config.blotato.accountId,
     content: {
-      text: text,
+      text: '',
       platform: 'instagram' as const,
     },
     target: {
