@@ -337,6 +337,7 @@ export default function Dashboard() {
       const assetDate = new Date(asset.date);
       assetDate.setHours(9, 0, 0, 0);
       const localDateTime = formatDateTimeLocal(assetDate);
+      console.log('[Schedule Modal] Opening with initial time:', localDateTime, 'for asset date:', asset.date);
       setScheduledDateTime(localDateTime);
     }
 
@@ -367,6 +368,12 @@ export default function Dashboard() {
       // Convert local datetime to ISO string
       const scheduledDate = new Date(scheduledDateTime);
       const scheduledTime = scheduledDate.toISOString();
+
+      console.log('[Schedule] Sending to API:', {
+        scheduledDateTime,
+        scheduledTime,
+        assetId: selectedAssetId
+      });
 
       const response = await fetch(`/api/assets/${selectedAssetId}/schedule`, {
         method: 'POST',
@@ -755,7 +762,10 @@ export default function Dashboard() {
           <input
             type="datetime-local"
             value={scheduledDateTime}
-            onChange={(e) => setScheduledDateTime(e.target.value)}
+            onChange={(e) => {
+              console.log('[Schedule Modal] DateTime changed:', e.target.value);
+              setScheduledDateTime(e.target.value);
+            }}
             className="w-full h-11 px-4 bg-bg-tertiary border border-border-primary rounded-lg text-sm text-fg-primary focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all"
           />
           <div className="flex gap-3 pt-4">
