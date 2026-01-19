@@ -660,7 +660,7 @@ export default function Dashboard() {
         {/* Filter Bar */}
         <FilterBar
           onSearch={setSearchQuery}
-          onStatusFilter={setStatusFilter}
+          onStatusFilter={(status) => setStatusFilter(status as Status | 'all')}
           onSort={setSortBy}
           selectedCount={selectedAssetIds.length}
           onBulkAction={() => {}}

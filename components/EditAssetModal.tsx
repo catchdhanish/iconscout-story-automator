@@ -129,7 +129,7 @@ export default function EditAssetModal({
   };
 
   const handleDownload = () => {
-    if (!asset?.id) return;
+    if (!asset?.id || !previewUrl) return;
     const link = document.createElement('a');
     link.href = previewUrl;
     link.download = `story-${asset.id}-v${selectedVersion}.png`;

@@ -54,22 +54,23 @@ Status: ${asset.status}
 Error Message:
 ${error.message}
 
-${error.code ? `Error Code: ${error.code}\n` : ''}
-${error.timestamp ? `Timestamp: ${new Date(error.timestamp).toLocaleString()}\n` : ''}
-${error.stack ? `\nStack Trace:\n${error.stack}` : ''}
-${error.details ? `\nAdditional Details:\n${JSON.stringify(error.details, null, 2)}` : ''}
+${error.failed_at ? `Failed At: ${new Date(error.failed_at).toLocaleString()}\n` : ''}
+Retry Count: ${error.retry_count}
+
+${error.details ? `Additional Details:\n${error.details}` : ''}
     `.trim();
 
     navigator.clipboard.writeText(errorText);
     toast.success('Error details copied to clipboard');
   };
 
-  // Determine error category and icon
+  // Determine error category and icon based on message
   const getErrorCategory = () => {
-    if (error.code?.startsWith('NETWORK_')) return 'Network Error';
-    if (error.code?.startsWith('API_')) return 'API Error';
-    if (error.code?.startsWith('VALIDATION_')) return 'Validation Error';
-    if (error.code?.startsWith('GENERATION_')) return 'Generation Error';
+    const msg = error.message.toLowerCase();
+    if (msg.includes('network') || msg.includes('connection') || msg.includes('timeout')) return 'Network Error';
+    if (msg.includes('api') || msg.includes('request') || msg.includes('response')) return 'API Error';
+    if (msg.includes('validation') || msg.includes('invalid')) return 'Validation Error';
+    if (msg.includes('generation') || msg.includes('generate')) return 'Generation Error';
     return 'System Error';
   };
 
@@ -112,16 +113,11 @@ ${error.details ? `\nAdditional Details:\n${JSON.stringify(error.details, null, 
               {getErrorCategory()}
             </h3>
             <p className="text-sm text-fg-secondary">
-              {error.timestamp && (
-                <>Occurred {new Date(error.timestamp).toLocaleString()}</>
+              {error.failed_at && (
+                <>Occurred {new Date(error.failed_at).toLocaleString()}</>
               )}
             </p>
           </div>
-          {error.code && (
-            <div className="px-3 py-1 bg-bg-tertiary border border-border-primary rounded text-xs font-mono text-fg-primary">
-              {error.code}
-            </div>
-          )}
         </div>
 
         {/* Asset Context */}
@@ -157,7 +153,7 @@ ${error.details ? `\nAdditional Details:\n${JSON.stringify(error.details, null, 
         </div>
 
         {/* Technical Details (Collapsible) */}
-        {(error.stack || error.details) && (
+        {error.details && (
           <div className="space-y-2">
             <button
               onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
@@ -176,22 +172,12 @@ ${error.details ? `\nAdditional Details:\n${JSON.stringify(error.details, null, 
 
             {showTechnicalDetails && (
               <div className="p-4 bg-bg-primary border border-border-primary rounded-lg overflow-x-auto">
-                {error.stack && (
-                  <div className="mb-4">
-                    <h5 className="text-xs font-medium text-fg-tertiary mb-2">Stack Trace:</h5>
-                    <pre className="text-xs text-fg-secondary font-mono whitespace-pre-wrap">
-                      {error.stack}
-                    </pre>
-                  </div>
-                )}
-                {error.details && (
-                  <div>
-                    <h5 className="text-xs font-medium text-fg-tertiary mb-2">Additional Details:</h5>
-                    <pre className="text-xs text-fg-secondary font-mono whitespace-pre-wrap">
-                      {JSON.stringify(error.details, null, 2)}
-                    </pre>
-                  </div>
-                )}
+                <div>
+                  <h5 className="text-xs font-medium text-fg-tertiary mb-2">Error Details:</h5>
+                  <pre className="text-xs text-fg-secondary font-mono whitespace-pre-wrap">
+                    {error.details}
+                  </pre>
+                </div>
               </div>
             )}
           </div>
