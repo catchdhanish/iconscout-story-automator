@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Main Asset model representing an Instagram Story asset
+model Asset {
+  id                       String    @id @default(uuid())
+  date                     String    // YYYY-MM-DD format
+  assetUrl                 String    @map("asset_url")
+  metaDescription          String    @map("meta_description")
+  status                   Status    @default(Draft)
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime? @updatedAt @map("updated_at")
+
+  // AI-generated fields
+  assetVisionDescription   String?   @map("asset_vision_description")
+  dominantColors           String[]  @map("dominant_colors")
+
+  // Version tracking
+  activeVersion            Int?      @map("active_version")
+  versions                 Version[]
+
+  // Blotato/scheduling fields
+  blotatoPostId            String?   @map("blotato_post_id")
+  scheduledTime            DateTime? @map("scheduled_time")
+  scheduledAt              DateTime? @map("scheduled_at")
+  publishedAt              DateTime? @map("published_at")
+  verifiedAt               DateTime? @map("verified_at")
+
+  // Text overlay configuration
+  textOverlayContent       String?   @map("text_overlay_content")
+  textOverlayEnabled       Boolean   @default(true) @map("text_overlay_enabled")
+  textOverlayAnalytics     Json?     @map("text_overlay_analytics")
+
+  // Error tracking
+  error                    Json?
+
+  @@index([date])
+  @@index([status])
+  @@index([createdAt])
+  @@map("assets")
+}
+
+// Version model representing different background generations
+model Version {
+  id                          String    @id @default(uuid())
+  assetId                     String    @map("asset_id")
+  asset                       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  version                     Int
+  createdAt                   DateTime  @default(now()) @map("created_at")
+  promptUsed                  String    @map("prompt_used") @db.Text
+  refinementPrompt            String?   @map("refinement_prompt") @db.Text
+  filePath                    String    @map("file_path")
+
+  // Text overlay fields
+  textOverlayApplied          Boolean?  @map("text_overlay_applied")
+  textOverlayContent          String?   @map("text_overlay_content")
+  textOverlayPosition         Json?     @map("text_overlay_position")
+  textOverlayFailed           Boolean?  @map("text_overlay_failed")
+  textOverlayError            String?   @map("text_overlay_error")
+  textOverlayFallbackApplied  Boolean?  @map("text_overlay_fallback_applied")
+
+  // Preview fields
+  previewFilePath             String?   @map("preview_file_path")
+  previewGeneratedAt          DateTime? @map("preview_generated_at")
+  previewGenerationTimeMs     Int?      @map("preview_generation_time_ms")
+  previewGenerationFailed     Boolean?  @map("preview_generation_failed")
+
+  @@unique([assetId, version])
+  @@index([assetId])
+  @@map("versions")
+}
+
+// Enum for asset status
+enum Status {
+  Draft
+  Ready
+  Scheduled
+  Published
+  Failed
+  Archived
+}

@@ -58,6 +58,15 @@ export const config = {
   },
 
   /**
+   * Database configuration
+   * PostgreSQL connection via Prisma
+   */
+  database: {
+    url: process.env.DATABASE_URL || '',
+    enabled: !!process.env.DATABASE_URL,
+  },
+
+  /**
    * Temporary directory for image processing
    */
   tempDir: process.env.TEMP_DIR || '/tmp/isa-processing',

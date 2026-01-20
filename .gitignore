@@ -47,3 +47,5 @@ temp/
 # History and cache
 history.json.lock
 .cache/
+
+/lib/generated/prisma
