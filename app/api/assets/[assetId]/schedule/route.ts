@@ -10,6 +10,7 @@ import { getAsset, updateHistory } from '@/lib/history';
 import { composeStory } from '@/lib/composition';
 import { scheduleStory } from '@/lib/blotato';
 import { config } from '@/lib/config';
+import { uploadToS3, localPathToS3Key } from '@/lib/s3';
 
 /**
  * POST handler for scheduling Instagram stories
@@ -188,9 +189,35 @@ export async function POST(
       );
     }
 
+    // Upload to S3 if storage mode is hybrid or s3
+    let finalPublicUrl = publicUrl;
+    if (config.storage?.mode === 'hybrid' || config.storage?.mode === 's3') {
+      try {
+        const s3Key = localPathToS3Key(publicUrl);
+        const s3Url = await uploadToS3(outputPath, s3Key, 'image/png');
+        finalPublicUrl = s3Url;
+        console.log(`[Schedule] Uploaded composed story to S3: ${s3Url}`);
+      } catch (s3Error) {
+        console.error('[Schedule] S3 upload failed:', s3Error);
+        if (config.storage?.mode === 's3') {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Failed to upload to S3: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`
+            },
+            { status: 500 }
+          );
+        }
+        // In hybrid mode, fall back to local URL
+      }
+    }
+
     // 10. Upload composed story to Instagram via Blotato
     let postId: string;
     try {
+      // In S3 mode, Blotato needs to fetch from S3 URL
+      // For now, we still pass outputPath and let scheduleStory convert it to URL
+      // The finalPublicUrl will be stored in metadata
       postId = await scheduleStory(outputPath, scheduledDate);
     } catch (error) {
       return NextResponse.json(
@@ -227,11 +254,11 @@ export async function POST(
         // Set updated_at
         updatedAsset.updated_at = new Date().toISOString();
 
-        // Update active version's file_path with composed image path
+        // Update active version's file_path with composed image path (S3 URL if uploaded)
         const versionIndex = updatedAsset.active_version! - 1;
         const versionUpdate: any = {
           ...updatedAsset.versions[versionIndex],
-          file_path: publicUrl
+          file_path: finalPublicUrl
         };
 
         // Add text overlay analytics to version if available

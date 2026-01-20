@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 import { composeStory } from './composition';
 import type { AssetVersion } from './types';
 import { readHistory, updateHistory } from './history';
+import { config } from './config';
+import { uploadToS3, localPathToS3Key } from './s3';
 
 /**
  * Get the file path for a preview image
@@ -154,6 +156,23 @@ export async function generatePreview(
           throw new Error(result.analytics?.text_overlay?.error || 'Composition failed');
         }
 
+        // Upload to S3 if storage mode is hybrid or s3
+        let finalPreviewUrl = getPreviewUrl(assetId, version);
+        if (config.storage?.mode === 'hybrid' || config.storage?.mode === 's3') {
+          try {
+            const s3Key = localPathToS3Key(finalPreviewUrl);
+            const s3Url = await uploadToS3(previewPath, s3Key, 'image/png');
+            finalPreviewUrl = s3Url;
+            console.log(`[Preview] Uploaded to S3: ${s3Url}`);
+          } catch (s3Error) {
+            console.error('[Preview] S3 upload failed:', s3Error);
+            if (config.storage?.mode === 's3') {
+              throw new Error(`S3 upload failed: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`);
+            }
+            // In hybrid mode, fall back to local URL
+          }
+        }
+
         // 4. Update metadata on success
         // Validation happens inside callback for atomic operation (Issue #2 fix)
         const processingTime = Date.now() - startTime;
@@ -170,7 +189,7 @@ export async function generatePreview(
           // Update version metadata
           hist.assets[assetIndex].versions[versionIndex] = {
             ...hist.assets[assetIndex].versions[versionIndex],
-            preview_file_path: getPreviewUrl(assetId, version),
+            preview_file_path: finalPreviewUrl, // Use S3 URL if uploaded, otherwise local
             preview_generated_at: generatedAt,
             preview_generation_time_ms: processingTime,
             preview_generation_failed: false
@@ -181,7 +200,7 @@ export async function generatePreview(
 
         return {
           success: true,
-          previewUrl: getPreviewUrl(assetId, version),
+          previewUrl: finalPreviewUrl,
           generated_at: generatedAt,
           generation_time_ms: processingTime
         };

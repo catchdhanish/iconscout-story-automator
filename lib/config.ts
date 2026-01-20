@@ -29,6 +29,40 @@ export const config = {
   },
 
   /**
+   * AWS configuration for S3 storage
+   */
+  aws: {
+    region: process.env.AWS_REGION || 'us-east-1',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    s3Bucket: process.env.AWS_S3_BUCKET || '',
+  },
+
+  /**
+   * CloudFront CDN configuration
+   */
+  cloudFront: {
+    enabled: process.env.CLOUDFRONT_ENABLED !== 'false',
+    url: process.env.CLOUDFRONT_URL || '',
+    domain: process.env.CLOUDFRONT_DISTRIBUTION_DOMAIN || '',
+  },
+
+  /**
+   * Storage mode configuration
+   * - local: Use local filesystem only (legacy mode)
+   * - hybrid: Write to both local and S3, read from S3 first with fallback
+   * - s3: Use S3 only
+   */
+  storage: {
+    mode: (process.env.STORAGE_MODE || 'local') as 'local' | 'hybrid' | 's3',
+  },
+
+  /**
+   * Temporary directory for image processing
+   */
+  tempDir: process.env.TEMP_DIR || '/tmp/isa-processing',
+
+  /**
    * File system paths
    */
   paths: {
@@ -86,6 +120,17 @@ export const config = {
   preview: {
     retentionDays: parseInt(process.env.PREVIEW_RETENTION_DAYS || '30', 10),
     bulkApprovalLimit: parseInt(process.env.BULK_APPROVAL_LIMIT || '50', 10),
+  },
+
+  /**
+   * S3 history backup configuration
+   */
+  s3: {
+    historyBackupEnabled: process.env.S3_HISTORY_BACKUP_ENABLED === 'true',
+    historyBackupSchedule: process.env.S3_HISTORY_BACKUP_SCHEDULE || '0 2 * * *',
+    historyBackupRetentionDays: parseInt(process.env.S3_HISTORY_BACKUP_RETENTION_DAYS || '90', 10),
+    uploadTimeoutMs: parseInt(process.env.S3_UPLOAD_TIMEOUT_MS || '30000', 10),
+    uploadMaxRetries: parseInt(process.env.S3_UPLOAD_MAX_RETRIES || '3', 10),
   },
 } as const;
 

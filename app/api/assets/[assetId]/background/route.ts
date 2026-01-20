@@ -14,6 +14,8 @@ import { generatePreview } from '@/lib/preview';
 import type { AssetVersion } from '@/lib/types';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { config } from '@/lib/config';
+import { uploadToS3, localPathToS3Key } from '@/lib/s3';
 
 /**
  * Default system prompt for background generation
@@ -202,12 +204,34 @@ export async function POST(
       );
     }
 
+    // Upload to S3 if storage mode is hybrid or s3
+    let finalPublicPath = publicPath;
+    if (config.storage?.mode === 'hybrid' || config.storage?.mode === 's3') {
+      try {
+        const s3Key = localPathToS3Key(publicPath);
+        const s3Url = await uploadToS3(backgroundPath, s3Key, 'image/png');
+        finalPublicPath = s3Url;
+        console.log(`[Background] Uploaded to S3: ${s3Url}`);
+      } catch (s3Error) {
+        console.error('[Background] S3 upload failed:', s3Error);
+        if (config.storage?.mode === 's3') {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Failed to upload to S3: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`
+            },
+            { status: 500 }
+          );
+        }
+      }
+    }
+
     // Create new AssetVersion
     const newVersion: AssetVersion = {
       version: versionNumber,
       created_at: new Date().toISOString(),
       prompt_used: fullPromptUsed, // Store full prompt (system + user)
-      file_path: publicPath // Populated with actual path
+      file_path: finalPublicPath // Use S3 URL if uploaded, otherwise local path
     };
 
     // Update asset with new version

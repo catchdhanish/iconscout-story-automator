@@ -4,6 +4,8 @@ import { AssetMetadata } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { config } from '@/lib/config';
+import { uploadToS3, localPathToS3Key } from '@/lib/s3';
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
 const ALLOWED_TYPES = ['image/png', 'image/jpg', 'image/jpeg'];
@@ -101,6 +103,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Upload to S3 if storage mode is hybrid or s3
+    let assetUrl = `/uploads/${filename}`;
+    if (config.storage?.mode === 'hybrid' || config.storage?.mode === 's3') {
+      try {
+        const s3Key = localPathToS3Key(`/uploads/${filename}`);
+        const s3Url = await uploadToS3(filePath, s3Key, assetFile.type);
+        assetUrl = s3Url;
+        console.log(`[Upload] Uploaded to S3: ${s3Url}`);
+      } catch (s3Error) {
+        console.error('[Upload] S3 upload failed:', s3Error);
+        // In hybrid mode, fall back to local URL
+        // In s3 mode, this is a critical error
+        if (config.storage?.mode === 's3') {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Failed to upload to S3: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`
+            },
+            { status: 500 }
+          );
+        }
+      }
+    }
+
     // Process date field: validate if provided, otherwise use current date
     let assetDate: string;
     if (date && date.trim()) {
@@ -121,7 +147,7 @@ export async function POST(request: NextRequest) {
     const asset: AssetMetadata = {
       id: assetId,
       date: assetDate,
-      asset_url: `/uploads/${filename}`,
+      asset_url: assetUrl,
       meta_description: metaDescription.trim(),
       status: 'Draft',
       created_at: new Date().toISOString(),
